@@ -47,18 +47,91 @@ PRT_START: .equ 0b10
 	endmacro
 
 	macro line_scanout_pixels_x10
-		line_scanout_pixels
-		line_scanout_pixels
-		line_scanout_pixels
-		line_scanout_pixels
-		line_scanout_pixels
-
-		line_scanout_pixels
-		line_scanout_pixels
-		line_scanout_pixels
-		line_scanout_pixels
-		line_scanout_pixels
+		call scanout_line_with_pixeldata
+		call scanout_line_with_pixeldata
+		call scanout_line_with_pixeldata
+		call scanout_line_with_pixeldata
+		call scanout_line_with_pixeldata
+		call scanout_line_with_pixeldata
+		call scanout_line_with_pixeldata
+		call scanout_line_with_pixeldata
+		call scanout_line_with_pixeldata
+		call scanout_line_with_pixeldata
 	endmacro
+
+	macro line_scanout_x10_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+	endmacro
+
+	macro line_scanout_x24_quadrupled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_doubled
+	endmacro
+
+	macro line_scanout_x30_tripled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_doubled
+	endmacro
+
 ; GPIO usage:
 ; gpio-c 8 bits colour data
 ; gpio-d pin 6: vsync
@@ -255,7 +328,232 @@ scanline_handler_frontporch:
 
 		END_INT
 
+scanline_handler_pixeldata_120:
+	; we have 35 cycles of front porch
+		; 19 cycles incrementing _vga_line_number past the pixel scanout region
+		; (plus 1 -- see end of function where 1 hsync is emitted for first line of vertical back porch)
+		ld hl,(_vga_line_number)	; 7 cycles
+		ld bc,481			; 4 cycles
+		add hl,bc			; 1 cycle
+		ld (_vga_line_number),hl	; 7 cycles
+		; 16 more
+		REP_NOP 8
+		ld hl,pixeldata		; 4 cycles
+		push de			; 4 cycles
+
+	; miss a line (scan out no pixel data)
+		REP_NOP 470
+		
+	; 479 lines
+		line_scanout_x24_quadrupled
+		line_scanout_x24_quadrupled
+		line_scanout_x24_quadrupled
+		line_scanout_x24_quadrupled
+		line_scanout_x24_quadrupled
+		line_scanout_x24_quadrupled
+		line_scanout_x24_quadrupled
+		line_scanout_x24_quadrupled
+		line_scanout_x24_quadrupled
+		line_scanout_x24_quadrupled
+		line_scanout_x24_quadrupled
+		line_scanout_x24_quadrupled
+		line_scanout_x24_quadrupled
+		line_scanout_x24_quadrupled
+		line_scanout_x24_quadrupled
+		line_scanout_x24_quadrupled
+		line_scanout_x24_quadrupled
+		line_scanout_x24_quadrupled
+		line_scanout_x24_quadrupled
+
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_doubled
+
+		; do hsync pulse of next blank line, then reti
+		; to ensure the timer for the line after isn't missed
+
+		; back porch
+		REP_NOP 12
+		; hsync pulse
+		in0 a,(PD_DR)	; 4 cycles
+		and 0b01111111		; 2 cycles
+		out0 (PD_DR),a	; 4 cycles
+		REP_NOP 55
+		or 0b10000000		; 2 cycles (hsync off)
+		out0 (PD_DR),a 	; 4 cycles
+		
+		pop de
+
+		END_INT
+
 scanline_handler_pixeldata:
+scanline_handler_pixeldata_160:
+	; we have 35 cycles of front porch
+		; 19 cycles incrementing _vga_line_number past the pixel scanout region
+		; (plus 1 -- see end of function where 1 hsync is emitted for first line of vertical back porch)
+		ld hl,(_vga_line_number)	; 7 cycles
+		ld bc,481			; 4 cycles
+		add hl,bc			; 1 cycle
+		ld (_vga_line_number),hl	; 7 cycles
+		; 16 more
+		REP_NOP 8
+		ld hl,pixeldata		; 4 cycles
+		push de			; 4 cycles
+
+	; miss a line (scan out no pixel data)
+		REP_NOP 470
+		
+	; total 479 lines
+		line_scanout_x30_tripled
+		line_scanout_x30_tripled
+		line_scanout_x30_tripled
+		line_scanout_x30_tripled
+		line_scanout_x30_tripled
+		line_scanout_x30_tripled
+		line_scanout_x30_tripled
+		line_scanout_x30_tripled
+		line_scanout_x30_tripled
+		line_scanout_x30_tripled
+		line_scanout_x30_tripled
+		line_scanout_x30_tripled
+		line_scanout_x30_tripled
+		line_scanout_x30_tripled
+		line_scanout_x30_tripled
+		line_scanout_x30_tripled
+
+		; do hsync pulse of next blank line, then reti
+		; to ensure the timer for the line after isn't missed
+
+		; back porch
+		REP_NOP 12
+		; hsync pulse
+		in0 a,(PD_DR)	; 4 cycles
+		and 0b01111111		; 2 cycles
+		out0 (PD_DR),a	; 4 cycles
+		REP_NOP 55
+		or 0b10000000		; 2 cycles (hsync off)
+		out0 (PD_DR),a 	; 4 cycles
+		
+		pop de
+
+		END_INT
+scanline_handler_pixeldata_240:
+	; we have 35 cycles of front porch
+		; 19 cycles incrementing _vga_line_number past the pixel scanout region
+		; (plus 1 -- see end of function where 1 hsync is emitted for first line of vertical back porch)
+		ld hl,(_vga_line_number)	; 7 cycles
+		ld bc,481			; 4 cycles
+		add hl,bc			; 1 cycle
+		ld (_vga_line_number),hl	; 7 cycles
+		; 16 more
+		REP_NOP 8
+		ld hl,pixeldata		; 4 cycles
+		push de			; 4 cycles
+
+	; miss a line (scan out no pixel data)
+		REP_NOP 470
+		
+	; total 479 lines
+	; 100 lines
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+	; 100 lines
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+	; 100 lines
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+	; 100 lines
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+	; 70 lines
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+		line_scanout_x10_doubled
+	; 9 lines
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+		call scanout_line_doubled
+		call scanout_line_with_pixeldata
+
+		; do hsync pulse of next blank line, then reti
+		; to ensure the timer for the line after isn't missed
+
+		; back porch
+		REP_NOP 12
+		; hsync pulse
+		in0 a,(PD_DR)	; 4 cycles
+		and 0b01111111		; 2 cycles
+		out0 (PD_DR),a	; 4 cycles
+		REP_NOP 55
+		or 0b10000000		; 2 cycles (hsync off)
+		out0 (PD_DR),a 	; 4 cycles
+		
+		pop de
+
+		END_INT
+scanline_handler_pixeldata_480:
 	; we have 35 cycles of front porch
 		; 19 cycles incrementing _vga_line_number past the pixel scanout region
 		; (plus 1 -- see end of function where 1 hsync is emitted for first line of vertical back porch)
@@ -325,15 +623,15 @@ scanline_handler_pixeldata:
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
 	; 9 lines
-		line_scanout_pixels
-		line_scanout_pixels
-		line_scanout_pixels
-		line_scanout_pixels
-		line_scanout_pixels
-		line_scanout_pixels
-		line_scanout_pixels
-		line_scanout_pixels
-		line_scanout_pixels
+		call scanout_line_with_pixeldata
+		call scanout_line_with_pixeldata
+		call scanout_line_with_pixeldata
+		call scanout_line_with_pixeldata
+		call scanout_line_with_pixeldata
+		call scanout_line_with_pixeldata
+		call scanout_line_with_pixeldata
+		call scanout_line_with_pixeldata
+		call scanout_line_with_pixeldata
 
 		; do hsync pulse of next blank line, then reti
 		; to ensure the timer for the line after isn't missed
@@ -387,245 +685,7 @@ scanline_handlers_lookup:
 		.dl scanline_handler_frontporch
 		; 480 (240 doubled) of pixel data
 		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
-		.dl scanline_handler_pixeldata
+		.ds [239 * 3]	; skipped over as pixeldata handler runs for 480 lines with interrupts disabled
 		; 33 lines (16 scanline doubled) of back porch
 		.dl scanline_handler_backporch
 		.dl scanline_handler_backporch
@@ -718,14 +778,40 @@ scanout_line_with_pixeldata:
 	; 35 cyles (horizontal front porch)
 	xor a			; 1 cycle
 	out0 (PC_DR),a	; 4 cycles
-	REP_NOP 16
-	nop
-	nop
-	nop
-	nop
+	REP_NOP 20
 	ld de,PC_DR		; 4 cycles
-	;ld hl,pixeldata		; 4 cycles
 	ld bc,153		; 4 cycles
+	otirx			; 2 (+ 3*153 accounted for in next section)
+
+	; 470 cycles (pixel data)
+	;  - 459 cycles from otirx scanout
+	out0 (PC_DR),a	; 4 cycles clear pixel data
+	nop
+
+	ret		; 6 cycles
+
+; Total 588 cycles per scanline (minus 7 consumed by 'call')
+scanout_line_doubled:
+	; 12 cycles (horizontal back porch)
+	;               ; 7 cycles consumed by 'call'
+	REP_NOP 5
+
+	; 71 cyles hsync pulse (-ve)
+	in0 a,(PD_DR)	; 4 cycles
+	and 0b01111111		; 2 cycles
+	out0 (PD_DR),a	; 4 cycles
+	REP_NOP 55
+	or 0b10000000		; 2 cycles (hsync off)
+	out0 (PD_DR),a 	; 4 cycles
+
+	; 35 cyles (horizontal front porch)
+	xor a			; 1 cycle
+	out0 (PC_DR),a	; 4 cycles
+	REP_NOP 17
+	ld de,PC_DR		; 4 cycles
+	ld bc,153		; 4 cycles
+	or a			; 1
+	sbc hl,bc		; 2
 	otirx			; 2 (+ 3*153 accounted for in next section)
 
 	; 470 cycles (pixel data)
