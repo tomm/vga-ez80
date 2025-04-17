@@ -220,88 +220,73 @@ start_scanout:
 		; Now pixel data scanout (no data yet)
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
-		nop
 		; -0.1 cycles spare
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
-		nop
 		; 0.1 cycles spare
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
-		nop
 		; 0 cycles spare
 	; 100 lines
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
-		nop
 		; -0.1 cycles spare
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
-		nop
 		; 0.1 cycles spare
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
-		nop
 		; 0 cycles spare
 	; 100 lines
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
-		nop
 		; -0.1 cycles spare
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
-		nop
 		; 0.1 cycles spare
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
-		nop
 		; 0 cycles spare
 	; 100 lines
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
-		nop
 		; -0.1 cycles spare
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
-		nop
 		; 0.1 cycles spare
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
-		nop
 		; 0 cycles spare
 	; 100 lines
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
-		nop
 		; -0.1 cycles spare
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
-		nop
 		; 0.1 cycles spare
 		line_scanout_pixels_x10
 		line_scanout_pixels_x10
 
 		; back porch begins here
 		line_scanout_empty_x10
-		nop
 		; 0 cycles spare
 	; -> 500 lines done, 23 to go
 		line_scanout_empty_x10
