@@ -1,3 +1,5 @@
+	; interrupt-based GPIO video scanout, V1.0
+
 	.assume adl=1
 	.org $40000
 	jp start
@@ -328,6 +330,7 @@ scanline_handler_frontporch:
 
 		END_INT
 
+scanline_handler_pixeldata:
 scanline_handler_pixeldata_120:
 	; we have 35 cycles of front porch
 		; 19 cycles incrementing _vga_line_number past the pixel scanout region
@@ -406,7 +409,6 @@ scanline_handler_pixeldata_120:
 
 		END_INT
 
-scanline_handler_pixeldata:
 scanline_handler_pixeldata_160:
 	; we have 35 cycles of front porch
 		; 19 cycles incrementing _vga_line_number past the pixel scanout region
