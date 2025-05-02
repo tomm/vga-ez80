@@ -33,7 +33,13 @@ PRT_START: .equ 0b10
 
 modestruct_len: .equ 15
 _modes:
-		; initial scanline handler, scanline length in CPU clocks divided by 4, width, height, scan_multiplier (ie 2 for doublescan)
+		; struct Mode {
+		; 	void (*initial_scanline_handler_fn)();
+		;	uint24_t scanline_duration;  /* In CPU clocks divided by 4 */
+		;	uint24_t width;
+		;	uint24_t height;
+		;	uint24_t scan_multiplier;    /* eg: 2 for doublescan */
+		; }
 		.dl vga_scanline_handler_vsync, 147, 156, 120, 4
 		.dl vga_scanline_handler_vsync, 147, 156, 160, 3
 		.dl vga_scanline_handler_vsync, 147, 156, 240, 2
@@ -60,7 +66,8 @@ _section_line_number:
 		.db 0
 
 video_init:
-		; turn off vblank interupt, since it screws everything up
+		; turn off vblank interupt
+		; XXX this is actually unnecessary - but will make sense for framebuffer MOS
 		in0 a,(PB_ALT2)
 		res 1,a
 		out0 (PB_ALT2),a

@@ -22,22 +22,42 @@
 ;          480 lines visible
 ;           33 lines back porch
 
-	macro line_scanout_pixels
-		call scanout_line_with_pixeldata
-	endmacro
+; Total 588 cycles per scanline
+macro scanline_pixel_scanout_31khz
+	; 12 cycles (horizontal back porch)
+	;               ; 8 cycles consumed by looping code (ex af,af' && dec a && jp nz,@loop && ex af,af')
+		REP_NOP 4
 
-	macro line_scanout_pixels_x10
-		call scanout_line_with_pixeldata
-		call scanout_line_with_pixeldata
-		call scanout_line_with_pixeldata
-		call scanout_line_with_pixeldata
-		call scanout_line_with_pixeldata
-		call scanout_line_with_pixeldata
-		call scanout_line_with_pixeldata
-		call scanout_line_with_pixeldata
-		call scanout_line_with_pixeldata
-		call scanout_line_with_pixeldata
-	endmacro
+	; 71 cyles hsync pulse (-ve)
+		in0 a,(PD_DR)	; 4 cycles
+		and 0b01111111		; 2 cycles
+		or 0		; 2 cycles to match exact timing of SYNC_PULSE_31KHZ macro
+		out0 (PD_DR),a	; 4 cycles
+		REP_NOP 53
+		or 0b10000000		; 2 cycles (hsync off)
+		out0 (PD_DR),a 	; 4 cycles
+
+	; 35 cyles (horizontal front porch)
+		; these 2 are redundant really. can remove
+		xor a			; 1 cycle
+		out0 (PC_DR),a	; 4 cycles
+
+		; update the framebuffer pointer
+		ld hl,(fb_ptr)		; 7 cycles
+		ld bc,(iy+0)		; 6 cycles
+		add hl,bc		; 1 cycle
+		lea iy,iy+3		; 3 cycles
+
+		ld de,PC_DR		; 4 cycles
+		ld bc,156		; 4 cycles
+		otirx			; 2 + 3 (+ 3*155 accounted for in next section)
+
+	; 470 cycles (pixel data)
+	;  - 465 cycles from otirx scanout
+		out (PC_DR),a	; 3 cycles clear pixel data
+		nop
+		nop
+endmacro
 
 macro SYNC_PULSE_31KHZ mask, endcount, next_handler
 		push af
@@ -99,71 +119,33 @@ vga_scanline_handler_pixeldata:
 		or 0b10000000	; 2 cycles (hsync off)
 		out0 (PD_DR),a 	; 4 cycles
 	; 35 cycles of front porch
+		ex af,af'		; 1 cycle
+		push af			; 4 cycles
 		push iy			; 5 cycles
-		ld iy,(fb_scanline_offsets)	; 8 cycles
-		REP_NOP 9
-		ld hl,fb_ptr		; 4 cycles
-		ld hl,(hl)		; 5 cycles
 		push de			; 4 cycles
+		ld iy,(fb_scanline_offsets)	; 8 cycles
+		; loop counter in a'
+		ld a,240		; 2 cycles
+		REP_NOP 11
 	; blank pixel area
 		REP_NOP 470
 		
 	; 480 lines
-		REP_NOP 4	; scanout expects 4 cycles overrun into back porch
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
-		line_scanout_pixels_x10
+		REP_NOP 7	; scanline_pixel_scanout_31khz expects 7 cycles overrun into back porch
+	@loop:
+		ex af,af'		; 1 cycle
+		scanline_pixel_scanout_31khz
+		REP_NOP 8
+		scanline_pixel_scanout_31khz
+		ex af,af'		; 1 cycle
+		dec a			; 1 cycle
+		jp nz,@loop		; 5 cycles when taken
 
 		; do hsync pulse of next blank line, then reti
 		; to ensure the timer for the line after isn't missed
 
 		; horizontal back porch
-		REP_NOP 8 ; only 8, not 12. 4 cycle overrun from pixel scanout
+		REP_NOP 6 ; only 6, not 12. 6 cycle overrun from pixel scanout
 		; hsync pulse
 		in0 a,(PD_DR)	; 4 cycles
 		and 0b01111111		; 2 cycles
@@ -186,6 +168,8 @@ vga_scanline_handler_pixeldata:
 
 		pop de
 		pop iy
+		pop af
+		ex af,af'
 		pop hl
 		pop bc
 		pop af
@@ -194,38 +178,3 @@ vga_scanline_handler_pixeldata:
 
 vga_scanline_handler_backporch:
 		SYNC_PULSE_31KHZ 0b01000000, 32, vga_scanline_handler_vsync
-
-
-; Total 588 cycles per scanline (minus 7 consumed by 'call')
-scanout_line_with_pixeldata:
-	; 12 cycles (horizontal back porch)
-	;               ; 7 cycles consumed by 'call'
-		REP_NOP 1
-
-	; 71 cyles hsync pulse (-ve)
-		in0 a,(PD_DR)	; 4 cycles
-		and 0b01111111		; 2 cycles
-		out0 (PD_DR),a	; 4 cycles
-		REP_NOP 55
-		or 0b10000000		; 2 cycles (hsync off)
-		out0 (PD_DR),a 	; 4 cycles
-
-	; 35 cyles (horizontal front porch)
-		; these 2 are redundant really. can remove
-		xor a			; 1 cycle
-		out0 (PC_DR),a	; 4 cycles
-
-		; update the framebuffer pointer
-		ld hl,(fb_ptr)		; 7 cycles
-		ld bc,(iy+0)		; 6 cycles
-		add hl,bc		; 1 cycle
-		lea iy,iy+3		; 3 cycles
-
-		ld de,PC_DR		; 4 cycles
-		ld bc,156		; 4 cycles
-		otirx			; 2 + 3 (+ 3*155 accounted for in next section)
-
-	; 470 cycles (pixel data)
-	;  - 465 cycles from otirx scanout
-		out (PC_DR),a	; 3 cycles clear pixel data
-		ret		; 6 cycles - 4 of these cycles overrun into horizontal back porch
