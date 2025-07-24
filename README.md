@@ -38,10 +38,10 @@ To follow VGA 64x480x60Hz timings, we have the following clock cycle
 budget per scanline on the eZ80:
 
 ```
-Total scanline:    588 cycles (31.901 us)
+Total scanline:    586 cycles (31.792 us)
     hsync pulse:    71 cycles
     front porch:    35 cycles
-    pixel data:    470 cycles
+    pixel data:    468 cycles
     back porch      12 cycles
 ```
 
