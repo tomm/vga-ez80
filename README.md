@@ -1,5 +1,8 @@
 # VGA-EZ80: An experiment in eZ80 video signal generation
 
+Check out this video of [60fps framebuffer scrolling](https://www.youtube.com/shorts/ev4wi_WDekA),
+all done by the eZ80 CPU.
+
 ![256_color_text](pictures/PXL_20250428_text.jpg)
 
 ## What is this?
