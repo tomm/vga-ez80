@@ -40,10 +40,10 @@ _modes:
 		;	uint24_t height;
 		;	uint24_t scan_multiplier;    /* eg: 2 for doublescan */
 		; }
-		.dl vga_scanline_handler_vsync, 146, 156, 120, 4
-		.dl vga_scanline_handler_vsync, 146, 156, 160, 3
-		.dl vga_scanline_handler_vsync, 146, 156, 240, 2
-		.dl vga_scanline_handler_vsync, 146, 156, 480, 1
+		.dl vga_scanline_handler_vsync, 147, 156, 120, 4
+		.dl vga_scanline_handler_vsync, 147, 156, 160, 3
+		.dl vga_scanline_handler_vsync, 147, 156, 240, 2
+		.dl vga_scanline_handler_vsync, 147, 156, 480, 1
 		.dl scanline_handler_vsync_15khz, 294, 310, 120, 4
 		.dl scanline_handler_vsync_15khz, 294, 310, 160, 3
 		.dl scanline_handler_vsync_15khz, 294, 310, 240, 2

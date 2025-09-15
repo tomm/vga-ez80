@@ -1,6 +1,6 @@
 ; Timings in 18.432Hz cpu cycles:
 ; 640x480x60hz vga spec is 585.73 cycles (31.778 us)
-; Our PRT timer impl is 584 cycles (31.684 us)
+; Our PRT timer impl is 588 cycles (0.3% slower - within VESA spec)
 
 ; VGA spec:
 ; Total scanline: 585.73 cycles (31.778 us)
@@ -10,10 +10,10 @@
 ;     back porch   11.72 cycles ( 0.636 us)
 
 ; Our Implementation:
-; Total scanline:    584 cycles (31.901 us)
-;     hsync pulse:    70 cycles
+; Total scanline:    588 cycles (31.901 us)
+;     hsync pulse:    71 cycles
 ;     front porch:    35 cycles
-;     pixel data:    467 cycles
+;     pixel data:    470 cycles
 ;     back porch      12 cycles
 
 ; Total lines: 525
@@ -23,13 +23,13 @@
 ;           33 lines back porch
 
 macro HSYNC_ONLY
-	; 70 cycles (-ve sync pulse)
+	; 71 cycles (-ve sync pulse)
 		; 10 cycles pre-assertion (properly belonging to front porch)
 		in0 a,(PD_DR)	; 4 cycles
 		res 7,a		; 2 cycles
 		out0 (PD_DR),a	; 4 cycles
-		; 70 cycles asserted
-		REP_NOP 64
+		; 71 cycles asserted
+		REP_NOP 65
 		or 0b10000000		; 2 cycles (hsync off)
 		out0 (PD_DR),a 	; 4 cycles
 endmacro
@@ -51,8 +51,8 @@ macro DEJITTER_31KHZ_PRT
 
 	; convert to number of cycles lagged (by the instruction executing when interrupt was due)
 	ld b,a
-	ld a,0x17	; 0x17 determined by experiment. will be invalidated if any code on interrupt entry are changed
-			; (eg replacing pushes with exx)
+	ld a,0x25	; 0x25 determined by experiment. will be invalidated if any code on interrupt entry are changed
+			; (or PRT counter reset value changed)
 	sub b
 	; now cycles lagged is in `a`
 	; negate it by a computed jump into nops
@@ -117,15 +117,13 @@ macro scanline_pixel_scanout_31khz
 endmacro
 
 macro HSYNC_VSYNC_PULSE_31KHZ endcount, next_handler
-		push af
-		push bc
-		push de
-		push hl
+		ex af,af'
+		exx
 		ld bc,TMR1_CTL
 		in a,(bc)	; ACK
 		DEJITTER_31KHZ_PRT
 
-	; 70 cycles (-ve sync pulse)
+	; 71 cycles (-ve sync pulse)
 		HSYNC_ONLY
 
 	; 35 cycles front porch -- assert vsync at end of this (start of visible section)
@@ -139,10 +137,8 @@ macro HSYNC_VSYNC_PULSE_31KHZ endcount, next_handler
 		cp endcount
 		jr z,@end_section
 		ld (_section_line_number),a
-		pop hl
-		pop de
-		pop bc
-		pop af
+		exx
+		ex af,af'
 		ei
 		reti.lil
 
@@ -152,24 +148,20 @@ macro HSYNC_VSYNC_PULSE_31KHZ endcount, next_handler
 		ld bc,next_handler
 		ld hl,(_timer1_int_vector)
 		ld (hl),bc
-		pop hl
-		pop de
-		pop bc
-		pop af
+		exx
+		ex af,af'
 		ei
 		reti.lil
 endmacro
 
 macro HSYNC_PULSE_31KHZ endcount, next_handler
-		push af
-		push bc
-		push de
-		push hl
+		ex af,af'
+		exx
 		ld bc,TMR1_CTL
 		in a,(bc)	; ACK
 		DEJITTER_31KHZ_PRT
 
-	; 70 cycles (-ve sync pulse)
+	; 71 cycles (-ve sync pulse)
 		HSYNC_ONLY
 
 	; 35 cycles front porch -- assert vsync at end of this (start of visible section)
@@ -183,10 +175,8 @@ macro HSYNC_PULSE_31KHZ endcount, next_handler
 		cp endcount
 		jr z,@end_section
 		ld (_section_line_number),a
-		pop hl
-		pop de
-		pop bc
-		pop af
+		exx
+		ex af,af'
 		ei
 		reti.lil
 
@@ -196,24 +186,20 @@ macro HSYNC_PULSE_31KHZ endcount, next_handler
 		ld bc,next_handler
 		ld hl,(_timer1_int_vector)
 		ld (hl),bc
-		pop hl
-		pop de
-		pop bc
-		pop af
+		exx
+		ex af,af'
 		ei
 		reti.lil
 endmacro
 
 macro HSYNC_PULSE_31KHZ_IMG endcount, next_handler
-		push af
-		push bc
-		push de
-		push hl
+		ex af,af'
+		exx
 		ld bc,TMR1_CTL
 		in a,(bc)	; ACK
 		DEJITTER_31KHZ_PRT
 
-	; 70 cycles (-ve sync pulse)
+	; 71 cycles (-ve sync pulse)
 		HSYNC_ONLY
 
 	; 35 cycles front porch -- assert vsync at end of this (start of visible section)
@@ -246,10 +232,8 @@ macro HSYNC_PULSE_31KHZ_IMG endcount, next_handler
 		cp endcount
 		jr z,@end_section
 		ld (_section_line_number),a
-		pop hl
-		pop de
-		pop bc
-		pop af
+		exx
+		ex af,af'
 		ei
 		reti.lil
 
@@ -259,10 +243,8 @@ macro HSYNC_PULSE_31KHZ_IMG endcount, next_handler
 		ld bc,next_handler
 		ld hl,(_timer1_int_vector)
 		ld (hl),bc
-		pop hl
-		pop de
-		pop bc
-		pop af
+		exx
+		ex af,af'
 		ei
 		reti.lil
 endmacro
