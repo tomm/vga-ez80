@@ -268,15 +268,15 @@ macro HSYNC_PULSE_31KHZ_IMG endcount, next_handler
 endmacro
 
 vga_scanline_handler_vsync:
-		HSYNC_VSYNC_PULSE_31KHZ 2, vga_scanline_handler_frontporch
-vga_scanline_handler_frontporch:
-		HSYNC_PULSE_31KHZ 10, vga_scanline_handler_img1
+		HSYNC_VSYNC_PULSE_31KHZ 2, vga_scanline_handler_backporch
+vga_scanline_handler_backporch:
+		HSYNC_PULSE_31KHZ 33, vga_scanline_handler_img1
 vga_scanline_handler_img1:
 		HSYNC_PULSE_31KHZ_IMG 240, vga_scanline_handler_img2
 vga_scanline_handler_img2:
-		HSYNC_PULSE_31KHZ_IMG 240, vga_scanline_handler_backporch
-vga_scanline_handler_backporch:
-		HSYNC_PULSE_31KHZ 33, vga_scanline_handler_vsync
+		HSYNC_PULSE_31KHZ_IMG 240, vga_scanline_handler_frontporch
+vga_scanline_handler_frontporch:
+		HSYNC_PULSE_31KHZ 10, vga_scanline_handler_vsync
 vga_scanline_handler_pixeldata:
 		push af
 		push bc
