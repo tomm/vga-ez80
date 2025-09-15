@@ -9,15 +9,7 @@
 		.db 1 ; ADL
 
 		include "gpiovideo.asm"
-
-macro print_asciz literal
-	jr @after
-@lit:	asciz literal
-@after:	ld hl,@lit
-	ld bc,0
-	xor a
-	rst.lil 0x18
-endmacro
+		include "lib/print.asm"
 
 MODE:	.equ	1
 
@@ -73,6 +65,9 @@ start:
 		ld de,[156*119] + 155
 		add hl,de
 		ld (hl),a
+
+	@@:	nop
+		jr @b
 
 		pop iy
 		ld hl,0
