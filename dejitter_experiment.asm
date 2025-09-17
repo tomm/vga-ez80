@@ -131,12 +131,13 @@ macro DEJITTER
 
 	; convert to number of cycles lagged (by the instruction executing when interrupt was due)
 	ld b,a
-	ld a,0x17	; 0x17 determined by experiment. will be invalidated if any code on interrupt entry are changed
+	ld a,0x25	; 0x17 determined by experiment. will be invalidated if any code on interrupt entry are changed
 			; (eg replacing pushes with exx)
 	sub b
 	; now cycles lagged is in `a`
 	; negate it by a computed jump into nops
 	; (8 cycles for self-modify & jr)
+	and 0xf
 	ld (@cmpjmp+1),a	; overwrite target of next instruction (jr)
 @cmpjmp:
 	jr $+2	; dummy jump target, as it will be overwritten
@@ -165,14 +166,12 @@ macro DEJITTER
 endmacro
 
 timer_int_handler:
-		push af
-		push bc
-		push de
-		push hl
+		ex af,af'
+		exx
 		ld bc,TMR1_CTL
 		in a,(bc) ; ACK
-
 		DEJITTER
+
 		; save test result
 		ld hl,test_buffer
 		ld de,(test_position)
@@ -181,10 +180,8 @@ timer_int_handler:
 		inc de	
 		ld (test_position),de
 
-		pop hl
-		pop de
-		pop bc
-		pop af
+		exx
+		ex af,af'
 		ei
 		reti.lil
 
@@ -193,7 +190,7 @@ set_timer:
 		ld bc,timer_int_handler
 		ld (hl),bc
 		; set up timer1
-		ld hl,147 	; 147x4 clock cycle period
+		ld hl,147 	; 147x4 clock cycle period = 588 cycles
 		out0 (TMR1_DR_L),l
 		out0 (TMR1_DR_H),h
 		ld a, [PRT_ENABLE | PRT_CLK_DIV_4 | PRT_START | PRT_INT_ENABLE | PRT_MODE_CONTINUOUS]

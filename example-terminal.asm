@@ -7,6 +7,10 @@
 		.db "MOS"
 		.db 0 ; version
 		.db 1 ; ADL
+		
+		; to move this binary out of the way of subsequent
+		; 0x40000 binaries that might be run (keeping video alive perhaps)
+		.align $8000
 
 		include "gpiovideo.asm"
 		include "math.asm"

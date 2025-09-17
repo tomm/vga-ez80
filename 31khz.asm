@@ -90,35 +90,22 @@ macro DEJITTER_31KHZ_PRT
 	nop
 endmacro
 
-; Total 588 cycles per scanline
-macro scanline_pixel_scanout_31khz
-	; 12 cycles (horizontal back porch)
-	;               ; 8 cycles consumed by looping code (ex af,af' && dec a && jp nz,@loop && ex af,af')
-		REP_NOP 4
+macro HSYNC_PULSE_ONLY_WITH_SCANLINE_INCREMENT endcount
+		; 10 cycles pre-assertion (properly belonging to front porch)
+		in0 a,(PD_DR)	; 4 cycles
+		res 7,a		; 2 cycles
+		out0 (PD_DR),a	; 4 cycles
+		; 71 cycles asserted
+		REP_NOP 52
+		or 0b10000000		; 2 cycles (hsync off)
+		ld e,a			; 1 cycles
 
-	; 71 cyles hsync pulse (-ve)
-		HSYNC_ONLY
+		ld a,(_section_line_number)	; 5 cycles
+		inc a				; 1
+		cp endcount			; 1
+		ld (_section_line_number),a	; 5 cycles
 
-	; 35 cyles (horizontal front porch)
-		; these 2 are redundant really. can remove
-		xor a			; 1 cycle
-		out0 (PC_DR),a	; 4 cycles
-
-		; update the framebuffer pointer
-		ld hl,(fb_ptr)		; 7 cycles
-		ld bc,(iy+0)		; 6 cycles
-		add hl,bc		; 1 cycle
-		lea iy,iy+3		; 3 cycles
-
-		ld de,PC_DR		; 4 cycles
-		ld bc,156		; 4 cycles
-		otirx			; 2 + 3 (+ 3*155 accounted for in next section)
-
-	; 470 cycles (pixel data)
-	;  - 465 cycles from otirx scanout
-		out (PC_DR),a	; 3 cycles clear pixel data
-		nop
-		nop
+		out0 (PD_DR),e 	; 4 cycles
 endmacro
 
 macro HSYNC_VSYNC_PULSE_31KHZ endcount, next_handler
@@ -129,19 +116,51 @@ macro HSYNC_VSYNC_PULSE_31KHZ endcount, next_handler
 		DEJITTER_31KHZ_PRT
 
 	; 71 cycles (-ve sync pulse)
-		HSYNC_ONLY
+		HSYNC_PULSE_ONLY_WITH_SCANLINE_INCREMENT endcount
 
 	; 35 cycles back porch -- assert vsync at end of this (start of visible section)
 		REP_NOP 29
-		res 6,a		; 2 cycles
-		out0 (PD_DR),a	; 4 cycles
+		res 6,e		; 2 cycles
+		out0 (PD_DR),e	; 4 cycles
 
 	; Then GTFO (in some visible image time)
-		ld a,(_section_line_number)
-		inc a
 		cp endcount
 		jr z,@end_section
+		exx
+		ex af,af'
+		ei
+		reti.lil
+
+	@end_section:
+		xor a
 		ld (_section_line_number),a
+		ld bc,next_handler
+		ld hl,(_timer1_int_vector)
+		ld (hl),bc
+		exx
+		ex af,af'
+		ei
+		reti.lil
+endmacro
+
+macro HSYNC_PULSE_31KHZ_END_VSYNC endcount, next_handler
+		ex af,af'
+		exx
+		ld bc,TMR1_CTL
+		in a,(bc)	; ACK
+		DEJITTER_31KHZ_PRT
+
+	; 71 cycles (-ve sync pulse)
+		HSYNC_PULSE_ONLY_WITH_SCANLINE_INCREMENT endcount
+
+	; 35 cycles back porch -- de-assert vsync at end of this (start of visible section)
+		REP_NOP 29
+		set 6,e		; 2 cycles
+		out0 (PD_DR),e	; 4 cycles
+
+	; Then GTFO (in some visible area time)
+		cp endcount
+		jr z,@end_section
 		exx
 		ex af,af'
 		ei
@@ -167,19 +186,10 @@ macro HSYNC_PULSE_31KHZ endcount, next_handler
 		DEJITTER_31KHZ_PRT
 
 	; 71 cycles (-ve sync pulse)
-		HSYNC_ONLY
+		HSYNC_PULSE_ONLY_WITH_SCANLINE_INCREMENT endcount
 
-	; 35 cycles back porch -- de-assert vsync at end of this (start of visible section)
-		REP_NOP 29
-		set 6,a		; 2 cycles
-		out0 (PD_DR),a	; 4 cycles
-
-	; Then GTFO (in some visible area time)
-		ld a,(_section_line_number)
-		inc a
-		cp endcount
+	; Then GTFO
 		jr z,@end_section
-		ld (_section_line_number),a
 		exx
 		ex af,af'
 		ei
@@ -197,79 +207,14 @@ macro HSYNC_PULSE_31KHZ endcount, next_handler
 		reti.lil
 endmacro
 
-macro HSYNC_PULSE_31KHZ_IMG endcount, next_handler
-		ex af,af'
-		exx
-		ld bc,TMR1_CTL
-		in a,(bc)	; ACK
-		DEJITTER_31KHZ_PRT
-
-	; 71 cycles (-ve sync pulse)
-		HSYNC_ONLY
-
-	; 35 cycles back porch
-		REP_NOP 26
-		ld bc,PC_DR	; 4
-		ld a,0x1	; 2
-		out (bc),a	; 3
-
-	; Then GTFO (in some visible area time)
-		inc a
-		out (bc),a
-		inc a
-		out (bc),a
-		inc a
-		out (bc),a
-		inc a
-		out (bc),a
-		inc a
-		out (bc),a
-		inc a
-		out (bc),a
-		xor a
-		out (bc),a
-
-		ld a,(_section_line_number)
-		inc a
-		cp endcount
-		jr z,@end_section
-		ld (_section_line_number),a
-		exx
-		ex af,af'
-		ei
-		reti.lil
-
-	@end_section:
-		xor a
-		ld (_section_line_number),a
-		ld bc,next_handler
-		ld hl,(_timer1_int_vector)
-		ld (hl),bc
-		exx
-		ex af,af'
-		ei
-		reti.lil
-endmacro
-
-;vga_scanline_handler_vsync:
-;		HSYNC_VSYNC_PULSE_31KHZ 2, vga_scanline_handler_backporch
-;vga_scanline_handler_backporch:
-;		HSYNC_PULSE_31KHZ 33, vga_scanline_handler_img1
-;vga_scanline_handler_img1:
-;		HSYNC_PULSE_31KHZ_IMG 240, vga_scanline_handler_img2
-;vga_scanline_handler_img2:
-;		HSYNC_PULSE_31KHZ_IMG 240, vga_scanline_handler_frontporch
-;vga_scanline_handler_frontporch:
-;		HSYNC_PULSE_31KHZ 10, vga_scanline_handler_vsync
-
-vga_scanline_handler_vsync:
-		HSYNC_VSYNC_PULSE_31KHZ 2, vga_scanline_handler_backporch
-vga_scanline_handler_backporch:
-		HSYNC_PULSE_31KHZ 32, vga_scanline_handler_pixeldata
-vga_scanline_handler_img1:
-		HSYNC_PULSE_31KHZ_IMG 239, vga_scanline_handler_frontporch
 vga_scanline_handler_frontporch:
 		HSYNC_PULSE_31KHZ 9, vga_scanline_handler_vsync
+vga_scanline_handler_vsync:
+		HSYNC_VSYNC_PULSE_31KHZ 2, vga_scanline_handler_backporch_firstline
+vga_scanline_handler_backporch_firstline:
+		HSYNC_PULSE_31KHZ_END_VSYNC 1, vga_scanline_handler_backporch
+vga_scanline_handler_backporch:
+		HSYNC_PULSE_31KHZ 31, vga_scanline_handler_pixeldata
 vga_scanline_handler_pixeldata:
 		ex af,af'
 		exx
