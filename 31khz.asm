@@ -4,22 +4,27 @@
 
 ; VGA spec:
 ; Total scanline: 585.73 cycles (31.778 us)
-;     hsync pulse: 70.28 cycles ( 3.813 us)
-;     front porch: 35.15 cycles ( 1.907 us)
 ;     pixel data: 468.58 cycles (25.422 us)
-;     back porch   11.72 cycles ( 0.636 us)
+;     front porch: 11.72 cycles ( 0.636 us)
+;     hsync pulse: 70.28 cycles ( 3.813 us)
+;     back porch:  35.15 cycles ( 1.907 us)
 
 ; Our Implementation:
 ; Total scanline:    588 cycles (31.901 us)
-;     hsync pulse:    71 cycles
-;     front porch:    35 cycles
 ;     pixel data:    470 cycles
-;     back porch      12 cycles
+;     front porch:    12 cycles
+;     hsync pulse:    71 cycles
+;     back porch      35 cycles
+
+;     pixel data:    470 cycles
+;     front porch:    12 cycles
+;     hsync pulse:    71 cycles
+;     back porch      35 cycles
 
 ; Total lines: 525
-;            2 lines vsync pulse
-;           10 lines front porch
 ;          480 lines visible
+;           10 lines front porch
+;            2 lines vsync pulse
 ;           33 lines back porch
 
 macro HSYNC_ONLY
@@ -91,7 +96,7 @@ macro scanline_pixel_scanout_31khz
 	;               ; 8 cycles consumed by looping code (ex af,af' && dec a && jp nz,@loop && ex af,af')
 		REP_NOP 4
 
-	; 70 cyles hsync pulse (-ve)
+	; 71 cyles hsync pulse (-ve)
 		HSYNC_ONLY
 
 	; 35 cyles (horizontal front porch)
@@ -126,12 +131,12 @@ macro HSYNC_VSYNC_PULSE_31KHZ endcount, next_handler
 	; 71 cycles (-ve sync pulse)
 		HSYNC_ONLY
 
-	; 35 cycles front porch -- assert vsync at end of this (start of visible section)
+	; 35 cycles back porch -- assert vsync at end of this (start of visible section)
 		REP_NOP 29
 		res 6,a		; 2 cycles
 		out0 (PD_DR),a	; 4 cycles
 
-	; Then GTFO (in some front-porch time)
+	; Then GTFO (in some visible image time)
 		ld a,(_section_line_number)
 		inc a
 		cp endcount
@@ -164,12 +169,12 @@ macro HSYNC_PULSE_31KHZ endcount, next_handler
 	; 71 cycles (-ve sync pulse)
 		HSYNC_ONLY
 
-	; 35 cycles front porch -- assert vsync at end of this (start of visible section)
+	; 35 cycles back porch -- de-assert vsync at end of this (start of visible section)
 		REP_NOP 29
 		set 6,a		; 2 cycles
 		out0 (PD_DR),a	; 4 cycles
 
-	; Then GTFO (in some front-porch time)
+	; Then GTFO (in some visible area time)
 		ld a,(_section_line_number)
 		inc a
 		cp endcount
@@ -202,30 +207,29 @@ macro HSYNC_PULSE_31KHZ_IMG endcount, next_handler
 	; 71 cycles (-ve sync pulse)
 		HSYNC_ONLY
 
-	; 35 cycles front porch -- assert vsync at end of this (start of visible section)
+	; 35 cycles back porch -- de-assert vsync at end of this (start of visible section)
 		REP_NOP 29
 		set 6,a		; 2 cycles
 		out0 (PD_DR),a	; 4 cycles
 
-	; Then GTFO (in some front-porch time)
+	; Then GTFO (in some visible area time)
 		ld bc,PC_DR
-		ld a,0xff		; some color
+		ld a,0x1
 		out (bc),a
-		dec a
+		inc a
 		out (bc),a
-		dec a
+		inc a
 		out (bc),a
-		dec a
+		inc a
 		out (bc),a
-		dec a
+		inc a
 		out (bc),a
-		dec a
+		inc a
 		out (bc),a
-		dec a
+		inc a
 		out (bc),a
-		dec a
+		xor a
 		out (bc),a
-		dec a
 
 		ld a,(_section_line_number)
 		inc a
@@ -249,77 +253,101 @@ macro HSYNC_PULSE_31KHZ_IMG endcount, next_handler
 		reti.lil
 endmacro
 
+;vga_scanline_handler_vsync:
+;		HSYNC_VSYNC_PULSE_31KHZ 2, vga_scanline_handler_backporch
+;vga_scanline_handler_backporch:
+;		HSYNC_PULSE_31KHZ 33, vga_scanline_handler_img1
+;vga_scanline_handler_img1:
+;		HSYNC_PULSE_31KHZ_IMG 240, vga_scanline_handler_img2
+;vga_scanline_handler_img2:
+;		HSYNC_PULSE_31KHZ_IMG 240, vga_scanline_handler_frontporch
+;vga_scanline_handler_frontporch:
+;		HSYNC_PULSE_31KHZ 10, vga_scanline_handler_vsync
+
 vga_scanline_handler_vsync:
 		HSYNC_VSYNC_PULSE_31KHZ 2, vga_scanline_handler_backporch
 vga_scanline_handler_backporch:
-		HSYNC_PULSE_31KHZ 33, vga_scanline_handler_img1
+		HSYNC_PULSE_31KHZ 32, vga_scanline_handler_pixeldata
 vga_scanline_handler_img1:
-		HSYNC_PULSE_31KHZ_IMG 240, vga_scanline_handler_img2
-vga_scanline_handler_img2:
-		HSYNC_PULSE_31KHZ_IMG 240, vga_scanline_handler_frontporch
+		HSYNC_PULSE_31KHZ_IMG 239, vga_scanline_handler_frontporch
 vga_scanline_handler_frontporch:
 		HSYNC_PULSE_31KHZ 10, vga_scanline_handler_vsync
 vga_scanline_handler_pixeldata:
-		push af
-		push bc
-		push de
-		push hl
+		ex af,af'
+		exx
 		ld bc,TMR1_CTL
 		in a,(bc)	; ACK
 		DEJITTER_31KHZ_PRT
 
-	; final scanline of front porch (line 10 of front porch)
-	; 70 cycles (-ve sync pulse)
+	; final scanline of vert. back porch (line 33 of back porch)
+	; 71 cycles (-ve sync pulse)
 		HSYNC_ONLY
-	; 35 cycles of front porch
-		ex af,af'		; 1 cycle
-		push af			; 4 cycles
+	; 35 cycles of h.back porch
+		push ix			; 5 cycles
 		push iy			; 5 cycles
-		push de			; 4 cycles
+		; loop counter in ixl
+		; XXX put back to 240!
+		ld ix,240		; 5 cycles
+		REP_NOP 1
 		ld iy,(fb_scanline_offsets)	; 8 cycles
-		; loop counter in a'
-		ld a,240		; 2 cycles
 		REP_NOP 11
 	; blank pixel area
 		REP_NOP 470
-		
-	; 480 lines
-		REP_NOP 7	; scanline_pixel_scanout_31khz expects 7 cycles overrun into back porch
-	@loop:
-		ex af,af'		; 1 cycle
-		scanline_pixel_scanout_31khz
-		REP_NOP 8
-		scanline_pixel_scanout_31khz
-		ex af,af'		; 1 cycle
-		dec a			; 1 cycle
-		jp nz,@loop		; 5 cycles when taken
 
+	; Setup first line of visible area
+		; 12 cycles front porch (10 eaten by HSYNC_ONLY setup)
+		REP_NOP 2
+		; 71 cycles hsync
+		HSYNC_ONLY
+		; 35 cycles back porch
+		REP_NOP 35
+	; 480 lines
+	@loop:
+		; 470 cycles: visible area
+		ld bc,PC_DR		; 4 cycles
+		ld a,2		; 2 cycles
+		out (bc),a		; 3 cycles
+		xor a			; 1 cycle
+		out (bc),a		; 3 cycles
+		REP_NOP 457
+		; 12 cycles front porch (10 eaten by HSYNC_ONLY setup)
+		REP_NOP 2
+		; 71 cycles hsync
+		HSYNC_ONLY
+		; 35 cycles back porch
+		REP_NOP 28
+		dec ixl			; 2 cycles
+		jp nz,@loop		; 5 cycles when taken (4 not taken)
+		
+		; now in 'visible area' portion of first line of v.front porch
 		; do hsync pulse of next blank line, then reti
 		; to ensure the timer for the line after isn't missed
 
-		; horizontal back porch
-		REP_NOP 6 ; only 6, not 12. 6 cycle overrun from pixel scanout
-		; hsync pulse
+		; 470 cycle 'visible area' minus 4 from not-taken `jp`
+		; mark end of frame
+		ld hl,frame_counter	; 4 cycles
+		inc (hl)		; 2 cycles
+		; mark: go to vertical front porch next
+		xor a				; 1 cycle
+		ld (_section_line_number),a	; 5 cycles
+		ld bc,vga_scanline_handler_img1 ; 4 cycles
+		ld hl,(_timer1_int_vector)	; 7 cycles
+		ld (hl),bc			; 5 cycles
+		pop iy				; 5 cycles
+		pop ix				; 5 cycles
+		REP_NOP 428
+
+		; 12 cycles front porch (10 eaten by HSYNC_ONLY setup)
+		REP_NOP 2
+
+		; 71 cycles hsync
 		HSYNC_ONLY
 
-		; mark end of frame
-		ld hl,frame_counter
-		inc (hl)
-
-		; go to vertical back porch next
-		xor a
-		ld (_section_line_number),a
-		ld bc,vga_scanline_handler_backporch
-		ld hl,(_timer1_int_vector)
-		ld (hl),bc
-
-		pop de
-		pop iy
-		pop af
+		; ack timer interrupt since we have overrun
+		ld bc,TMR1_CTL
+		in a,(bc)	; ACK
+		
+		exx
 		ex af,af'
-		pop hl
-		pop de
-		pop bc
-		pop af
 		ei
 		reti.lil
