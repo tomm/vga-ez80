@@ -207,15 +207,13 @@ macro HSYNC_PULSE_31KHZ_IMG endcount, next_handler
 	; 71 cycles (-ve sync pulse)
 		HSYNC_ONLY
 
-	; 35 cycles back porch -- de-assert vsync at end of this (start of visible section)
-		REP_NOP 29
-		set 6,a		; 2 cycles
-		out0 (PD_DR),a	; 4 cycles
+	; 35 cycles back porch
+		REP_NOP 26
+		ld bc,PC_DR	; 4
+		ld a,0x1	; 2
+		out (bc),a	; 3
 
 	; Then GTFO (in some visible area time)
-		ld bc,PC_DR
-		ld a,0x1
-		out (bc),a
 		inc a
 		out (bc),a
 		inc a
@@ -271,7 +269,7 @@ vga_scanline_handler_backporch:
 vga_scanline_handler_img1:
 		HSYNC_PULSE_31KHZ_IMG 239, vga_scanline_handler_frontporch
 vga_scanline_handler_frontporch:
-		HSYNC_PULSE_31KHZ 10, vga_scanline_handler_vsync
+		HSYNC_PULSE_31KHZ 9, vga_scanline_handler_vsync
 vga_scanline_handler_pixeldata:
 		ex af,af'
 		exx
@@ -285,9 +283,8 @@ vga_scanline_handler_pixeldata:
 	; 35 cycles of h.back porch
 		push ix			; 5 cycles
 		push iy			; 5 cycles
-		; loop counter in ixl
-		; XXX put back to 240!
-		ld ix,240		; 5 cycles
+		; loop counter in ix
+		ld ix,480		; 5 cycles
 		REP_NOP 1
 		ld iy,(fb_scanline_offsets)	; 8 cycles
 		REP_NOP 11
@@ -299,26 +296,56 @@ vga_scanline_handler_pixeldata:
 		REP_NOP 2
 		; 71 cycles hsync
 		HSYNC_ONLY
-		; 35 cycles back porch
-		REP_NOP 35
+		; 35 cycles h.back porch (5 unused for start of loop)
+		REP_NOP 4
+		; update the framebuffer pointer (26 cycles)
+		xor a			; 1 cycle
+		ld hl,(fb_ptr)		; 7 cycles
+		ld bc,(iy+0)		; 6 cycles
+		add hl,bc		; 1 cycle
+		lea iy,iy+3		; 3 cycles
+		ld de,PC_DR		; 4 cycles
+		ld bc,156		; 4 cycles
 	; 480 lines
 	@loop:
-		; 470 cycles: visible area
-		ld bc,PC_DR		; 4 cycles
-		ld a,2		; 2 cycles
-		out (bc),a		; 3 cycles
-		xor a			; 1 cycle
-		out (bc),a		; 3 cycles
-		REP_NOP 457
+		; 5 cycles of h.back porch
+		otirx			; 2 + 3 (+ 3*155 accounted for in next section)
+		; 470 cycles: visible area (3*155=465 from otirx)
+		out (PC_DR),a		; 3 cycles clear pixel data
+		nop
+		nop
 		; 12 cycles front porch (10 eaten by HSYNC_ONLY setup)
 		REP_NOP 2
+		in0 a,(PD_DR)	; 4 cycles
+		res 7,a		; 2 cycles
+		out0 (PD_DR),a	; 4 cycles
 		; 71 cycles hsync
-		HSYNC_ONLY
-		; 35 cycles back porch
-		REP_NOP 28
-		dec ixl			; 2 cycles
+		REP_NOP 40
+
+		; update the framebuffer pointer (25 cycles)
+		ld hl,(fb_ptr)		; 7 cycles
+		ld bc,(iy+0)		; 6 cycles
+		add hl,bc		; 1 cycle
+		lea iy,iy+3		; 3 cycles
+		ld de,PC_DR		; 4 cycles
+		ld bc,156		; 4 cycles
+
+		or 0b10000000		; 2 cycles (hsync off)
+		out0 (PD_DR),a 	; 4 cycles
+		; 35 cycles back porch (5 cycles unused to donate to start of loop)
+		REP_NOP 8
+		; long-winded way of using ix as a 16-bit loop counter...
+		dec ix			; 2 cycles
+		push bc			; 4 cycles
+		lea bc,ix+0		; 3
+		ld a,b			; 1
+		or a,c			; 1
+		pop bc			; 4
+		ld a,0			; 2 cycles
 		jp nz,@loop		; 5 cycles when taken (4 not taken)
-		
+
+		REP_NOP 6
+
 		; now in 'visible area' portion of first line of v.front porch
 		; do hsync pulse of next blank line, then reti
 		; to ensure the timer for the line after isn't missed
@@ -330,7 +357,7 @@ vga_scanline_handler_pixeldata:
 		; mark: go to vertical front porch next
 		xor a				; 1 cycle
 		ld (_section_line_number),a	; 5 cycles
-		ld bc,vga_scanline_handler_img1 ; 4 cycles
+		ld bc,vga_scanline_handler_frontporch ; 4 cycles
 		ld hl,(_timer1_int_vector)	; 7 cycles
 		ld (hl),bc			; 5 cycles
 		pop iy				; 5 cycles
