@@ -7,8 +7,8 @@ all done by the eZ80 CPU.
 
 ## What is this?
 
-This was an experimental framebuffer video driver for the Agon
-Light. The goal was to have 8-bit (256 colour RGB332) VGA output
+This is an experimental framebuffer video driver for the Agon
+Light. The goal is to have 8-bit (256 colour RGB332) VGA output
 directly from the main CPU (eZ80F92), as a more fun alternative
 to the serial link display protocol of the VDP (esp32). This would
 let programmers just draw pixels to ez80 memory, indulge in
@@ -52,19 +52,36 @@ GPIO D pin 7: hsync
 GPIO D pin 6: vsync
 GPIO C pin 0-7: pixel data (RGB332)
 
-Hsync and vsync connected straight to VGA. Colour signals involved
-resistor ladders with values around 544, 1.2k, 2.4k ohm for red and
-green, and 455, 986 ohm for blue.
+```
+eZ80 GPIOD-PIN6 ------------------------ VGA vsync
+eZ80 GPIOD-PIN7 ------------------------ VGA hsync
 
-## Did it work?
+eZ80 GPIOC-PIN0 -----{R 840Ω}---+------- VGA blue
+                                |
+eZ80 GPIOC-PIN1 -----{R 420Ω}---|
 
-### No Interrupts
+eZ80 GPIOC-PIN2 -----{R 1470Ω}--+------- VGA green
+                                |
+eZ80 GPIOC-PIN3 -----{R 980Ω}---+
+                                |
+eZ80 GPIOC-PIN4 -----{R 490Ω}---+
+
+eZ80 GPIOC-PIN5 -----{R 1470Ω}--+------- VGA red
+                                |
+eZ80 GPIOC-PIN6 -----{R 980Ω}---+
+                                |
+eZ80 GPIOC-PIN7 -----{R 490Ω}---+
+```
+
+## The prototypes
+
+### Without Interrupts
 
 See [ideal31khz.asm](ideal31khz.asm).
 
-Kinda. The eZ80F92 has no DMA capabilities, so you need to hog the
+The eZ80F92 has no DMA capabilities, so you need to hog the
 CPU to do video scanout. I had 2 prototypes: one that simply ran in
-a loop, using 100% CPU, to achieve ideal timing (within 0.04% of VGA
+a loop, using 100% CPU, to achieve ideal timing (within 0.03% of VGA
 timings). Both my monitors could sync to this. Unfortunately you
 can't run application code alongside this, so...
 
@@ -72,47 +89,24 @@ can't run application code alongside this, so...
 
 See [gpiovideo.asm](gpiovideo.asm) and [31khz.asm](31khz.asm).
 
-The other prototype was interrupt-based. It used eZ80F92 PRT timers
+The other prototype is interrupt-based. It used eZ80F92 PRT timers
 to interrupt user code in order to output the sync signal, while 
 the picture section of the scanout had to be done at 100% CPU since
 there was no time left between sync and picture to really yield
-to an application. This left less than 8% CPU for the user programs,
+to an application. This left less than 6% CPU for the user programs,
 but that might still be more grunt than a 4MHz Z80 of bygone times.
 
-In short, only one of my monitors (a very permissive Blaupunkt TV/Monitor)
-would sync to this signal. This is because eZ80 interrupt service time
-depends on the duration of the active instruction, which can be anything 
-between 1 and 7 (?) cycles. This was simply too much jitter for my
-other monitor.
-
-I couldn't imagine any solution to this whatsoever, so that's where
-the experiment ended.
-
-## Further avenues to explore
-
-### Optimisation
-
-The routines are not fully optimised, since foundational issues were still 
-being worked on when the fundamental jitter issue was realised. A notable place for
-optimisation would be return from hsync on blank lines. This could be done
-much sooner after the de-assertion of hsync, giving back more cycles to
-application code.
+The PRT interrupt handler is subject to 'random' jitter of up to
+9 cycles due to the latency of completing the current instruction
+before servicing the interrupt. Despite this, the VGA timing of
+the interrupt-driven VGA driver is as precise as the no-interrupts
+version, thanks to some jitter-correcting code on interrupt entry.
 
 ### More free CPU with 640x350
 
-Before realising the whole scheme was a bust, I had been planning to adopt
-VGA standard 640x350 timings. These would have given the application code
-more CPU time, since there are more blank scanlines in this resolution (22%).
-
-### A nuclear option
-
-If the eZ80 can't produce a jitter-free sync, an alternative would be to
-piggy-back on the sync signals produced by the ESP32. Providing those to
-the monitor, with the colour signal coming from the EZ80 GPIO-C, you'd 
-certainly get reliable sync. However, the EZ80 would still need to sync 
-to the ESP32's vsync via GPIO interrupts, so you would get an overall 
-picture position jitter which would probably be completely intolerable.
-This is why I never actually explored implementing this.
+VGA standard 640x350@70Hz timings allow more time for application code,
+since there are more blank scanlines in this resolution (25%).
+I measured 15% CPU free in these modes.
 
 ## The project in images
 
