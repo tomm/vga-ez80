@@ -11,7 +11,7 @@
 		include "gpiovideo.asm"
 		include "lib/print.asm"
 
-MODE:	.equ	1
+MODE:	.equ	4
 
 ; GPIO usage:
 ; gpio-c 8 bits colour data

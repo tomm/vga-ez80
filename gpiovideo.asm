@@ -1,3 +1,8 @@
+UART0_REG_RBR:		equ	0xc0	; receive buffer
+UART0_REG_IER:		equ	0xc1	; interrupt enable register
+UART0_REG_LSR:		equ	0xc5	; line status
+UART_LSR_RDY:		equ	0x01	; data ready
+
 PB_DR: .equ 0x9a
 PB_DDR: .equ 0x9b
 PB_ALT1: .equ 0x9c
@@ -44,6 +49,8 @@ _modes:
 		.dl vga_scanline_handler_vsync, 147, 156, 160, 3
 		.dl vga_scanline_handler_vsync, 147, 156, 240, 2
 		.dl vga_scanline_handler_vsync, 147, 156, 480, 1
+		.dl vga_640_350_scanline_handler_vsync, 147, 156, 175, 2
+		.dl vga_640_350_scanline_handler_vsync, 147, 156, 350, 1
 		.dl scanline_handler_vsync_15khz, 294, 310, 120, 4
 		.dl scanline_handler_vsync_15khz, 294, 310, 160, 3
 		.dl scanline_handler_vsync_15khz, 294, 310, 240, 2
@@ -66,8 +73,11 @@ _section_line_number:
 		.db 0
 
 video_init:
+		; turn off uart0 interrupt. we have to poll for uart0 rx
+		;xor a
+		;out0 (UART0_REG_IER),a
+		
 		; turn off vblank interupt
-		; XXX this is actually unnecessary - but will make sense for framebuffer MOS
 		in0 a,(PB_ALT2)
 		res 1,a
 		out0 (PB_ALT2),a
@@ -167,3 +177,4 @@ video_set_mode:	; mode in `a`
 
 	.include "15khz.asm"
 	.include "31khz.asm"
+	.include "vga_640_350_70hz.asm"
