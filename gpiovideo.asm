@@ -72,10 +72,13 @@ _timer1_int_vector:
 _section_line_number:
 		.db 0
 
+uart0_buf_pos:	.ds 3		; ptr into uart0_rx_buf
+uart0_rx_buf:	.ds 32
+
 video_init:
 		; turn off uart0 interrupt. we have to poll for uart0 rx
-		;xor a
-		;out0 (UART0_REG_IER),a
+		xor a
+		out0 (UART0_REG_IER),a
 		
 		; turn off vblank interupt
 		in0 a,(PB_ALT2)
@@ -121,6 +124,19 @@ video_init:
 		ld (hl),a ; write a call opcode
 		inc hl ; skip over CALL opcode
 		ld (_timer1_int_vector),hl
+
+		; clear uart0 buf
+		ld hl,uart0_rx_buf
+		ld (uart0_buf_pos),hl
+
+		; grab any pending uart0 crap
+		;ld hl,1000000
+		;ld de,1
+	;@loop:
+		;IN0		A,(UART0_REG_RBR)	; 4 cyc. Read the character from the UART receive buffer
+		;or a
+		;sbc hl,de
+		;jr nz,@loop
 
 		ret
 

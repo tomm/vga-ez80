@@ -92,30 +92,21 @@ macro PVE_HSYNC_NVE_VSYNC_PULSE_31KHZ endcount, next_handler
 		reti.lil
 endmacro
 
-UART0_serial_RX:	IN0		A,(UART0_REG_LSR)	; Get the line status register
-			AND 		UART_LSR_RDY		; Check for characters in buffer
-			RET		Z			; Just ret (with carry clear) if no characters
-			IN0		A,(UART0_REG_RBR)	; Read the character from the UART receive buffer
-			SCF 					; Set the carry flag
-			RET
-
-macro UART0_RX_POLL
-		; do uart0 poll
-		push af
-		push bc
-		push de
-		push hl
-		ei
-		call UART0_serial_RX
-		jr nc, @skip
-        	ld c,a
-        	ld a,0x60
-        	rst.lil 8
-	@skip:
-		pop hl
-		pop de
-		pop bc
-		pop af
+macro UART0_RX_POLL_32_CYC
+	; 32 cyc
+		IN0		A,(UART0_REG_LSR)	; 4 cyc. Get the line status register
+		AND 		UART_LSR_RDY		; 2 cyc. Check for characters in buffer
+		JR		Z,@empty		; 2 cyc (4 if taken)
+		IN0		A,(UART0_REG_RBR)	; 4 cyc. Read the character from the UART receive buffer
+		ld hl,(uart0_buf_pos)			; 7 cyc
+		ld (hl),a				; 2 cyc
+		inc hl					; 1 cyc
+		ld (uart0_buf_pos),hl			; 7 cyc
+		jr @end					; 3 cyc
+	@empty:
+		; 10 cyc from above
+		REP_NOP 22
+	@end:
 endmacro
 
 macro PVE_HSYNC_PULSE_31KHZ_END_VSYNC endcount, next_handler
@@ -139,10 +130,42 @@ macro PVE_HSYNC_PULSE_31KHZ_END_VSYNC endcount, next_handler
 		ld bc,next_handler
 		ld hl,(_timer1_int_vector)
 		ld (hl),bc
+
 		exx
 		ex af,af'
+		push af
+		push bc
+		push de
+		push hl
+		ei
 
-		UART0_RX_POLL
+		; process contents of uart0_rx_buf
+		ld hl,uart0_rx_buf
+		ld de,(uart0_buf_pos)
+	@loop:	or a
+		sbc hl,de
+		jr z,@end
+		or a
+		add hl,de
+		ld c,(hl)
+		; push byte to MOS uart0 rx state machine
+		ld a,0x60
+		push de
+		push hl
+		rst.lil 8
+		pop hl
+		pop de
+		inc hl
+		jr @loop
+	@end:
+		; clear uart0 buf
+		ld hl,uart0_rx_buf
+		ld (uart0_buf_pos),hl
+
+		pop hl
+		pop de
+		pop bc
+		pop af
 
 		reti.lil
 endmacro
@@ -159,6 +182,7 @@ macro PVE_HSYNC_PULSE_31KHZ endcount, next_handler
 
 	; Then GTFO
 		jr z,@end_section
+		UART0_RX_POLL_32_CYC
 		exx
 		ex af,af'
 		ei
@@ -170,6 +194,8 @@ macro PVE_HSYNC_PULSE_31KHZ endcount, next_handler
 		ld bc,next_handler
 		ld hl,(_timer1_int_vector)
 		ld (hl),bc
+
+		UART0_RX_POLL_32_CYC
 		exx
 		ex af,af'
 		ei
@@ -234,7 +260,9 @@ vga_640_350_scanline_handler_pixeldata:
 		set 7,a		; 2 cycles
 		out0 (PD_DR),a	; 4 cycles
 		; 71 cycles hsync
-		REP_NOP 40
+		push af		; 4 cyc
+		UART0_RX_POLL_32_CYC
+		pop af		; 4 cyc
 
 		; update the framebuffer pointer (25 cycles)
 		ld hl,(fb_ptr)		; 7 cycles
@@ -291,7 +319,5 @@ vga_640_350_scanline_handler_pixeldata:
 		exx
 		ex af,af'
 		ei
-
-		UART0_RX_POLL
 
 		reti.lil
