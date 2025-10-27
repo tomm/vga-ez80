@@ -34,7 +34,10 @@ macro HSYNC_ONLY
 		res 7,a		; 2 cycles
 		out0 (PD_DR),a	; 4 cycles
 		; 71 cycles asserted
-		REP_NOP 65
+		push af		; 4 cyc
+		UART0_RX_POLL_32_CYC
+		pop af		; 4 cyc
+		REP_NOP 25
 		or 0b10000000		; 2 cycles (hsync off)
 		out0 (PD_DR),a 	; 4 cycles
 endmacro
@@ -96,7 +99,10 @@ macro HSYNC_PULSE_ONLY_WITH_SCANLINE_INCREMENT endcount
 		res 7,a		; 2 cycles
 		out0 (PD_DR),a	; 4 cycles
 		; 71 cycles asserted
-		REP_NOP 52
+		push af		; 4 cyc
+		UART0_RX_POLL_32_CYC
+		pop af		; 4 cyc
+		REP_NOP 12
 		or 0b10000000		; 2 cycles (hsync off)
 		ld e,a			; 1 cycles
 
@@ -159,22 +165,48 @@ macro HSYNC_PULSE_31KHZ_END_VSYNC endcount, next_handler
 		out0 (PD_DR),e	; 4 cycles
 
 	; Then GTFO (in some visible area time)
-		cp endcount
-		jr z,@end_section
-		exx
-		ex af,af'
-		ei
-		reti.lil
-
-	@end_section:
 		xor a
 		ld (_section_line_number),a
 		ld bc,next_handler
 		ld hl,(_timer1_int_vector)
 		ld (hl),bc
+
 		exx
 		ex af,af'
+		push af
+		push bc
+		push de
+		push hl
 		ei
+
+		; process contents of uart0_rx_buf
+		ld hl,uart0_rx_buf
+		ld de,(uart0_buf_pos)
+	@loop:	or a
+		sbc hl,de
+		jr z,@end
+		or a
+		add hl,de
+		ld c,(hl)
+		; push byte to MOS uart0 rx state machine
+		ld a,0x60
+		push de
+		push hl
+		rst.lil 8
+		pop hl
+		pop de
+		inc hl
+		jr @loop
+	@end:
+		; clear uart0 buf
+		ld hl,uart0_rx_buf
+		ld (uart0_buf_pos),hl
+
+		pop hl
+		pop de
+		pop bc
+		pop af
+
 		reti.lil
 endmacro
 
@@ -265,7 +297,9 @@ vga_scanline_handler_pixeldata:
 		res 7,a		; 2 cycles
 		out0 (PD_DR),a	; 4 cycles
 		; 71 cycles hsync
-		REP_NOP 40
+		push af		; 4 cyc
+		UART0_RX_POLL_32_CYC
+		pop af		; 4 cyc
 
 		; update the framebuffer pointer (25 cycles)
 		ld hl,(fb_ptr)		; 7 cycles

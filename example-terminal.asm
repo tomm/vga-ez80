@@ -10,10 +10,7 @@
 		
 		; to move this binary out of the way of subsequent
 		; 0x40000 binaries that might be run (keeping video alive perhaps)
-		.align $8000
-
-		include "gpiovideo.asm"
-		include "math.asm"
+		;.align $10000
 
 macro print_asciz literal
 	jr @after
@@ -24,7 +21,7 @@ macro print_asciz literal
 	rst.lil 0x18
 endmacro
 
-MODE:	.equ	4
+MODE:	.equ	0
 
 ; GPIO usage:
 ; gpio-c 8 bits colour data
@@ -41,25 +38,31 @@ start:
 		ld a,MODE
 		call video_set_mode
 
-		; set pixel data
-        	ld hl,fb_ptr
-		ld bc,(hl)
-        	ld hl,[160*480]
-        	ld de,1
-        	ld a,255
-        @@:	ld (bc),a
-        	inc bc
-        	or a
-        	sbc hl,de
-        	jr nz,@b
+		; clear screen
+        	ld hl,(fb_ptr)
+		ld bc,156*175-1
+		push hl
+		pop de
+		inc de
+		xor a
+		ld (hl),a
+		ldir
 
 		call term_init
 
 		; hook into rst10. only works with agondev mos
-		ld hl,(0x11)
-		inc hl	; skip call opcode in ram reset handler table
-		ld de,rst10_handler
-		ld (hl),de
+		ld a,0x61
+		ld e,0x10
+		ld hl,rst10_handler
+		rst.lil 8
+
+		; enable fb console (needs agondev mos)
+		ld a,0x63 ; mos_api_startfbconsole
+		ld hl,(fb_ptr)
+		ld ix,(_current_mode)
+		ld de,(ix+6)	; screen.width
+		ld bc,(ix+9)	; screen.height
+		rst.lil 8
 
 		; print a nice message
 		ld hl,msg	
@@ -67,9 +70,6 @@ start:
 		or a
 		jr z,@f
 		push hl
-
-		ld hl,term_fg
-		dec (hl)
 
 		call term_putch
 		pop hl
@@ -79,6 +79,9 @@ start:
 		pop iy
 		ld hl,0
 		ret
+
+		include "gpiovideo.asm"
+		include "math.asm"
 
 rst10_handler:
 		push af
@@ -97,7 +100,7 @@ rst10_handler:
 		ret.lil
 
 msg:
-		.ascii "Hello, world!\r\nThis is a test of the terminal capabilities of the awesome eZ80 GPIO ViDEO!\r\n"
+		.ascii "0123456789 Hello, world!\r\nThis is a test of the terminal capabilities of the awesome eZ80 GPIO ViDEO!\r\n"
 		.ascii "RGB332 256 colours and near-retina resolutions from 156x120 to 310x480!!\r\n"
 		.ascii "\r\nLet's scroll!\r\n"
 		.ascii "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce quis elit et ex placerat finibus"
@@ -105,8 +108,8 @@ msg:
 		;.ascii "justo ac magna consectetur"
 		.db 0
 
-FONT_WIDTH: .equ 6
-FONT_HEIGHT: .equ 8
+FONT_WIDTH: .equ 4
+FONT_HEIGHT: .equ 6
 term_width:	.ds 1
 term_height:	.ds 1
 term_fg:	.ds 1
@@ -145,14 +148,23 @@ term_putch:	; character in `a`
 		push ix
 		push iy
 		push af
+
+		; rotate through colours
+		ld hl,term_fg
+		dec (hl)
+		jr nz,@f
+		dec (hl)
+	@@:
 	
 		ld ix,(_current_mode)
 
 		; find character y position
 		ld hl,(ix+6)	; screen.width
-		add hl,hl	; FONT_HEIGHT is 8
+		add hl,hl	; FONT_HEIGHT is 6
+		push hl
+		pop de
 		add hl,hl
-		add hl,hl	; hl=screen.width*8
+		add hl,de	; hl=screen.width*6
 
 		; hl=screen.width*8*curs_y
 		ld de,0
@@ -181,9 +193,9 @@ term_putch:	; character in `a`
 		push hl
 			; seek to character in font
 			ld b,a
-			ld c,8
+			ld c,6
 			mlt bc
-			ld hl,font_6x8
+			ld hl,font_4x6
 			add hl,bc
 
 		; framebuffer char position in iy
@@ -214,16 +226,6 @@ term_putch:	; character in `a`
 		jr nc,@f
 		ld a,(term_fg)
 	@@:	ld (iy+3),a
-		rlc c
-		ld a,(term_bg)
-		jr nc,@f
-		ld a,(term_fg)
-	@@:	ld (iy+4),a
-		rlc c
-		ld a,(term_bg)
-		jr nc,@f
-		ld a,(term_fg)
-	@@:	ld (iy+5),a
 
 		ld de,(ix+6)
 		add iy,de
@@ -263,11 +265,9 @@ term_putch:	; character in `a`
 		jr @end
 
 	@handle_scroll:
-		; bc = screen.width * (screen.height-8)
+		; bc = screen.width * (screen.height-6)
 		ld hl,(ix+6)	; screen.width
 		ld de,(ix+9)	; screen.height
-		dec de
-		dec de
 		dec de
 		dec de
 		dec de
@@ -279,9 +279,11 @@ term_putch:	; character in `a`
 		pop bc
 
 		ld hl,(ix+6)	; screen.width
-		add hl,hl	; FONT_HEIGHT is 8
+		add hl,hl	; FONT_HEIGHT is 6
+		push hl
+		pop de
 		add hl,hl
-		add hl,hl	; hl=screen.width*8
+		add hl,de	; hl=screen.width*6
 		ld de,(fb_ptr)
 		add hl,de
 
@@ -298,17 +300,23 @@ term_putch:	; character in `a`
 	@clear_line:	; terminal line in de
 		; number of bytes to wipe in bc
 		ld hl,(ix+6)	; screen.width
-		add hl,hl	; assumes FONT_HEIGHT is 8
+		push de
+		add hl,hl	; FONT_HEIGHT is 6
+		push hl
+		pop de
 		add hl,hl
-		add hl,hl
+		add hl,de	; hl=screen.width*6
 		push hl
 		pop bc
 		
 		; find character y position
 		ld hl,(ix+6)	; screen.width
-		add hl,hl	; FONT_HEIGHT is 8
+		add hl,hl	; FONT_HEIGHT is 6
+		push hl
+		pop de
 		add hl,hl
-		add hl,hl	; hl=screen.width*8
+		add hl,de	; hl=screen.width*6
+		pop de
 		call umul24	; hl=screen.width*8*line_no
 		ld de,(fb_ptr)
 		add hl,de
@@ -321,5 +329,5 @@ term_putch:	; character in `a`
 		ldir
 		ret
 
-font_6x8:
+font_4x6:
 		include "font.inc"

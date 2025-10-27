@@ -49,23 +49,22 @@ _modes:
 		.dl vga_scanline_handler_vsync, 147, 156, 160, 3
 		.dl vga_scanline_handler_vsync, 147, 156, 240, 2
 		.dl vga_scanline_handler_vsync, 147, 156, 480, 1
-		.dl vga_640_350_scanline_handler_vsync, 147, 156, 175, 2
-		.dl vga_640_350_scanline_handler_vsync, 147, 156, 350, 1
-		.dl scanline_handler_vsync_15khz, 294, 310, 120, 4
-		.dl scanline_handler_vsync_15khz, 294, 310, 160, 3
-		.dl scanline_handler_vsync_15khz, 294, 310, 240, 2
-		.dl scanline_handler_vsync_15khz, 294, 310, 480, 1
+		;.dl vga_640_350_scanline_handler_vsync, 147, 156, 116, 3
+		;.dl vga_640_350_scanline_handler_vsync, 147, 156, 175, 2
+		;.dl vga_640_350_scanline_handler_vsync, 147, 156, 350, 1
+		;.dl scanline_handler_vsync_15khz, 294, 310, 120, 4
+		;.dl scanline_handler_vsync_15khz, 294, 310, 160, 3
+		;.dl scanline_handler_vsync_15khz, 294, 310, 240, 2
+		;.dl scanline_handler_vsync_15khz, 294, 310, 480, 1
 
-_current_mode:	.dl 0
+; Public video_setup struct
+video_setup:
+	; incremented at end of image data scanout
+	frame_counter:	.db 0
+	fb_ptr:		.dl	0xb1000 ; [width*height] only 4k left for moslets...
+	fb_scanline_offsets: .dl     0xba240 ; [480*3] enough space for 156*240 mode
 
-; incremented at end of image data scanout
-frame_counter:
-		.db 0
-; pointer to scanline offsets. there will be [screen_height * 3] bytes of these
-fb_scanline_offsets:
-		.dl     0xa0000
-fb_ptr:
-		.dl	0xa1000 ; could be lower. 240*3 is only 0x2d0
+_current_mode:	.dl 0		; ptr into _modes
 
 _timer1_int_vector:
 		.ds 3
@@ -74,6 +73,13 @@ _section_line_number:
 
 uart0_buf_pos:	.ds 3		; ptr into uart0_rx_buf
 uart0_rx_buf:	.ds 32
+
+video_stop:
+		; Turn off GPIO video scanout
+		xor a
+		out0 (TMR1_CTL),a
+		; XXX missing re-enabling uart0 interrupt
+		ret
 
 video_init:
 		; turn off uart0 interrupt. we have to poll for uart0 rx
@@ -191,6 +197,7 @@ video_set_mode:	; mode in `a`
 		pop ix
 		ret
 
-	.include "15khz.asm"
-	.include "31khz.asm"
-	.include "vga_640_350_70hz.asm"
+	.include "uart0.asm"
+	;.include "15khz.asm"
+	.include "vga_640_480_60hz.asm"
+	;.include "vga_640_350_70hz.asm"

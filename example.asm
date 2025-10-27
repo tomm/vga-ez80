@@ -11,7 +11,7 @@
 		include "gpiovideo.asm"
 		include "lib/print.asm"
 
-MODE:	.equ	4
+MODE:	.equ	0
 
 ; GPIO usage:
 ; gpio-c 8 bits colour data
@@ -31,7 +31,7 @@ start:
 		; set pixel data
         	ld hl,fb_ptr
 		ld bc,(hl)
-        	ld hl,[160*480]
+        	ld hl,[156*160]
         	ld de,1
         	xor a
         @@:
