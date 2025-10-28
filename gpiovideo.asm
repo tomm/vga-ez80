@@ -74,15 +74,21 @@ _section_line_number:
 uart0_buf_pos:	.ds 3		; ptr into uart0_rx_buf
 uart0_rx_buf:	.ds 32
 
+saved_uart0_reg_ier:	.ds 1
+
 video_stop:
 		; Turn off GPIO video scanout
 		xor a
 		out0 (TMR1_CTL),a
-		; XXX missing re-enabling uart0 interrupt
+		; Re-enable uart0 interrupt(s)
+		ld a,(saved_uart0_reg_ier)
+		out0 (UART0_REG_IER),a
 		ret
 
 video_init:
 		; turn off uart0 interrupt. we have to poll for uart0 rx
+		in0 a,(UART0_REG_IER)
+		ld (saved_uart0_reg_ier),a
 		xor a
 		out0 (UART0_REG_IER),a
 		
