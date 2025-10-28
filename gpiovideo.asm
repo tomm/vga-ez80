@@ -1,3 +1,13 @@
+; Set to 1 unless running on Rainbow MOS 2.5+ (which provides a way to
+; inject uart0 rx bytes into MOS, and provides a proper keyboard buffer)
+;USE_CUSTOM_KEYBOARD_BUFFER: .equ 1
+
+		.if USE_CUSTOM_KEYBOARD_BUFFER
+			.include "custom_keyboard_buffer.asm"
+		.else
+inject_uart0_rx_byte:	; define this to work around an ez80asm 2.1 bug
+		.endif
+
 UART0_REG_RBR:		equ	0xc0	; receive buffer
 UART0_REG_IER:		equ	0xc1	; interrupt enable register
 UART0_REG_LSR:		equ	0xc5	; line status

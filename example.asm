@@ -8,6 +8,7 @@
 		.db 0 ; version
 		.db 1 ; ADL
 
+USE_CUSTOM_KEYBOARD_BUFFER: .equ 1
 		include "gpiovideo.asm"
 		include "lib/print.asm"
 
@@ -54,21 +55,45 @@ start:
 		add hl,de
 		ld (hl),a
 
-		ld hl,fb_ptr
-		ld hl,(hl)
+		ld hl,(fb_ptr)
 		ld de,[156*119]
 		add hl,de
 		ld (hl),a
 
-		ld hl,fb_ptr
-		ld hl,(hl)
+		ld hl,(fb_ptr)
 		ld de,[156*119] + 155
 		add hl,de
 		ld (hl),a
 
-	@@:	nop
-		jr @b
+		
+		; Main loop. On any keypress, set a pixel to the
+		; value of the vkey
+		ld hl,(fb_ptr)
+	@mainloop:	
+		ld de,kb_event
+		call get_next_key_event
 
+		or a
+		jr z,@mainloop		; no event
+
+		ld a,(de)	; ascii
+		cp 'q'
+		jr z,@exit
+		
+
+		inc de
+		inc de
+		ld a,(de)	; fabgl vkey
+	
+		; set pixel with vkey
+		ld (hl),a
+		inc hl
+		
+		jr @mainloop
+	@exit:
+		call video_stop
 		pop iy
 		ld hl,0
 		ret
+
+kb_event:	ds 4

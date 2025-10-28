@@ -1,4 +1,3 @@
-		; interrupt-based GPIO video scanout, V2.0
 		.assume adl=1
 		.org $40000
 		jp start
@@ -8,9 +7,9 @@
 		.db 0 ; version
 		.db 1 ; ADL
 		
-		; to move this binary out of the way of subsequent
-		; 0x40000 binaries that might be run (keeping video alive perhaps)
-		;.align $10000
+USE_CUSTOM_KEYBOARD_BUFFER: .equ 0	; use proper MOS integration
+		include "gpiovideo.asm"
+		include "math.asm"
 
 macro print_asciz literal
 	jr @after
@@ -79,9 +78,6 @@ start:
 		pop iy
 		ld hl,0
 		ret
-
-		include "gpiovideo.asm"
-		include "math.asm"
 
 rst10_handler:
 		push af

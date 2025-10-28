@@ -188,13 +188,22 @@ macro HSYNC_PULSE_31KHZ_END_VSYNC endcount, next_handler
 		or a
 		add hl,de
 		ld c,(hl)
-		; push byte to MOS uart0 rx state machine
+	.if USE_CUSTOM_KEYBOARD_BUFFER
+		; push byte into our custom uart0 rx state machine
+		push de
+		push hl
+		call inject_uart0_rx_byte
+		pop hl
+		pop de
+	.else
+		; push byte to MOS uart0 rx state machine (Rainbow MOS 2.5+)
 		ld a,0x60
 		push de
 		push hl
 		rst.lil 8
 		pop hl
 		pop de
+	.endif
 		inc hl
 		jr @loop
 	@end:

@@ -12,7 +12,7 @@
 		include "lib/print.asm"
 
 MOS_BOT: .equ 0xbc000
-TSR_LOC: .equ [MOS_BOT-0xa00]
+TSR_LOC: .equ [MOS_BOT-0xa00]		; must be 0x100 aligned
 
 start:
 		push iy
@@ -49,29 +49,23 @@ start:
 
 tsr_begin:
 	.relocate TSR_LOC
-rst20_api_handler:
-		push hl
-		ld hl,jumptable
-		add a,a
-		add a,a
-		add a,l
-		ld l,a
-		ld a,0
-		adc a,h
-		ld h,a
-		ld hl,(hl)
-		jp (hl)
 jumptable:
 		.dl api_getversion		; a=0
-		.db 0
 		.dl api_setmode			; a=1
-		.db 0
 		.dl api_getvideosetup		; a=2
-		.db 0
 		.dl api_getmodeinfo		; a=3
-		.db 0
 		.dl api_videostop		; a=4
-		.db 0
+
+rst20_api_handler:
+		push hl
+		; a *= 3
+		ld l,a
+		add a,a
+		add a,l
+		ld hl,jumptable
+		ld l,a		; only works due to .align 0x100 (and <85 api calls)
+		ld hl,(hl)
+		jp (hl)
 
 ; Input: a=0
 ; Return version in `a` (will be non-zero)
@@ -122,6 +116,7 @@ api_videostop:
 		call video_stop
 		ret.lil
 
+USE_CUSTOM_KEYBOARD_BUFFER: .equ 0	; Do not need custom logic. Use rainbow MOS 2.5+
 		include "gpiovideo.asm"
 	.endrelocate
 tsr_end:
