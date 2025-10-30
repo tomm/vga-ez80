@@ -16,11 +16,6 @@
 ;     hsync pulse:    71 cycles
 ;     back porch      35 cycles
 
-;     pixel data:    470 cycles
-;     front porch:    12 cycles
-;     hsync pulse:    71 cycles
-;     back porch      35 cycles
-
 ; Total lines: 525
 ;          480 lines visible
 ;           10 lines front porch
@@ -257,31 +252,35 @@ vga_scanline_handler_backporch_firstline:
 vga_scanline_handler_backporch:
 		HSYNC_PULSE_31KHZ 31, vga_scanline_handler_pixeldata
 vga_scanline_handler_pixeldata:
+	; Includes 1 scanline of vertical front porch at end of image scanout
+
 		ex af,af'
 		exx
 		ld bc,TMR1_CTL
 		in a,(bc)	; ACK
 		DEJITTER_31KHZ_PRT
 
-	; final scanline of vert. back porch (line 33 of back porch)
-	; 71 cycles (-ve sync pulse)
-		HSYNC_ONLY
-	; 35 cycles of h.back porch
+	; Setup first line of visible area
+		; 71 cycles hsync
+		; 10 cycles pre-assertion (properly belonging to front porch)
+		in0 a,(PD_DR)	; 4 cycles
+		res 7,a		; 2 cycles
+		out0 (PD_DR),a	; 4 cycles
+		; 71 cycles asserted
+		push af		; 4 cyc
+		UART0_RX_POLL_32_CYC
+		pop af		; 4 cyc
+
 		push ix			; 5 cycles
 		push iy			; 5 cycles
 		; loop counter in ix
 		ld ix,480		; 5 cycles
-		REP_NOP 1
 		ld iy,(fb_scanline_offsets)	; 8 cycles
-		REP_NOP 11
-	; blank pixel area
-		REP_NOP 470
-
-	; Setup first line of visible area
-		; 12 cycles front porch (10 eaten by HSYNC_ONLY setup)
 		REP_NOP 2
-		; 71 cycles hsync
-		HSYNC_ONLY
+
+		or 0b10000000		; 2 cycles (hsync off)
+		out0 (PD_DR),a 	; 4 cycles
+
 		; 35 cycles h.back porch (5 unused for start of loop)
 		REP_NOP 4
 		; update the framebuffer pointer (26 cycles)

@@ -6,6 +6,9 @@
 		.db "MOS"
 		.db 0 ; version
 		.db 1 ; ADL
+
+		; Move main binary out of low 0x40000 space, so other programs can sometimes be loaded...
+		.align $1000
 		
 USE_CUSTOM_KEYBOARD_BUFFER: .equ 0	; use proper MOS integration
 		include "gpiovideo.asm"

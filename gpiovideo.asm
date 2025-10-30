@@ -4,8 +4,6 @@
 
 		.if USE_CUSTOM_KEYBOARD_BUFFER
 			.include "custom_keyboard_buffer.asm"
-		.else
-inject_uart0_rx_byte:	; define this to work around an ez80asm 2.1 bug
 		.endif
 
 UART0_REG_RBR:		equ	0xc0	; receive buffer
