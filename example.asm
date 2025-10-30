@@ -12,7 +12,7 @@ USE_CUSTOM_KEYBOARD_BUFFER: .equ 1
 		include "gpiovideo.asm"
 		include "lib/print.asm"
 
-MODE:	.equ	0
+MODE:	.equ	4
 
 ; GPIO usage:
 ; gpio-c 8 bits colour data

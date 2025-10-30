@@ -57,6 +57,8 @@ _modes:
 		.dl vga_scanline_handler_vsync, 147, 156, 160, 3
 		.dl vga_scanline_handler_vsync, 147, 156, 240, 2
 		.dl vga_scanline_handler_vsync, 147, 156, 480, 1
+		.dl vga_scanline_grille_handler_vsync, 147, 156, 120, 2
+		.dl vga_scanline_grille_handler_vsync, 147, 156, 240, 1
 		;.dl vga_640_350_scanline_handler_vsync, 147, 156, 116, 3
 		;.dl vga_640_350_scanline_handler_vsync, 147, 156, 175, 2
 		;.dl vga_640_350_scanline_handler_vsync, 147, 156, 350, 1

@@ -23,7 +23,7 @@ macro print_asciz literal
 	rst.lil 0x18
 endmacro
 
-MODE:	.equ	0
+MODE:	.equ	5
 
 ; GPIO usage:
 ; gpio-c 8 bits colour data

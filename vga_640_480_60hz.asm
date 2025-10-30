@@ -243,6 +243,96 @@ macro HSYNC_PULSE_31KHZ endcount, next_handler
 		reti.lil
 endmacro
 
+; 480 scanline grille scanout (only draw every second scanline)
+vga_scanline_grille_handler_frontporch:
+		HSYNC_PULSE_31KHZ 10, vga_scanline_grille_handler_vsync
+vga_scanline_grille_handler_vsync:
+		HSYNC_VSYNC_PULSE_31KHZ 2, vga_scanline_grille_handler_backporch_firstline
+vga_scanline_grille_handler_backporch_firstline:
+		HSYNC_PULSE_31KHZ_END_VSYNC 1, vga_scanline_grille_handler_backporch
+vga_scanline_grille_handler_backporch:
+		HSYNC_PULSE_31KHZ 32, vga_scanline_grille_handler_pixeldata
+vga_scanline_grille_handler_pixeldata:
+		ex af,af'
+		exx
+		ld bc,TMR1_CTL
+		in a,(bc)	; ACK
+		DEJITTER_31KHZ_PRT
+
+	; Setup visible line
+		; 71 cycles hsync
+		; 10 cycles pre-assertion (properly belonging to front porch)
+		in0 a,(PD_DR)	; 4 cycles
+		res 7,a		; 2 cycles
+		out0 (PD_DR),a	; 4 cycles
+		; 71 cycles asserted
+		push af		; 4 cyc
+		UART0_RX_POLL_32_CYC
+		ld a,(_section_line_number)	; 5 cycles
+		ld bc,0				; 4 cycles
+		ld c,a				; 1 cyc
+		; hl = &fb_scanline_offsets[_section_line_number]
+		ld hl,(fb_scanline_offsets)	; 7 cycles
+		add hl,bc			; 1 cycles
+		add hl,bc			; 1 cycles
+		add hl,bc			; 1 cycles
+		REP_NOP 5
+		pop af		; 4 cyc
+		or 0b10000000		; 2 cycles (hsync off)
+		out0 (PD_DR),a 	; 4 cycles
+
+		; 35 cycles h.back porch (5 unused for start of loop)
+		REP_NOP 8
+		; update the framebuffer pointer (26 cycles)
+		xor a			; 1 cycle
+		ld bc,(hl)		; 5 cycles
+		ld hl,(fb_ptr)		; 7 cycles
+		add hl,bc		; 1 cycle
+		ld de,PC_DR		; 4 cycles
+		ld bc,156		; 4 cycles
+
+		; 5 cycles of h.back porch
+		otirx			; 2 + 3 (+ 3*155 accounted for in next section)
+		; 470 cycles: visible area (3*155=465 from otirx)
+		out (PC_DR),a		; 3 cycles clear pixel data
+		nop
+		nop
+
+		; now in non-scanned line of grille
+		; horiz front porch
+		REP_NOP 2
+		; 71 cycles hsync
+		HSYNC_ONLY
+		
+		; ack timer interrupt since we have overrun
+		ld bc,TMR1_CTL
+		in a,(bc)	; ACK
+		
+		; increment _section_line_number
+		ld a,(_section_line_number)	; 5 cycles
+		inc a				; 1
+		cp 240			; 1
+		ld (_section_line_number),a	; 5 cycles
+
+	; Then GTFO
+		jr z,@end_section
+		exx
+		ex af,af'
+		ei
+		reti.lil
+
+	@end_section:
+		xor a
+		ld (_section_line_number),a
+		ld bc,vga_scanline_grille_handler_frontporch
+		ld hl,(_timer1_int_vector)
+		ld (hl),bc
+		exx
+		ex af,af'
+		ei
+		reti.lil
+
+; Full 480 line image scanout
 vga_scanline_handler_frontporch:
 		HSYNC_PULSE_31KHZ 9, vga_scanline_handler_vsync
 vga_scanline_handler_vsync:
