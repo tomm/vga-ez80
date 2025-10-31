@@ -23,7 +23,7 @@ macro print_asciz literal
 	rst.lil 0x18
 endmacro
 
-MODE:	.equ	5
+MODE:	.equ	4
 
 ; GPIO usage:
 ; gpio-c 8 bits colour data
@@ -116,6 +116,8 @@ term_bg:	.ds 1
 curs_x:		.ds 1
 curs_y:		.ds 1
 
+vdp_active_fn:	.ds 3
+
 
 term_init:	; size the terminal. needed after mode change
 		push ix
@@ -140,50 +142,83 @@ term_init:	; size the terminal. needed after mode change
 		ld a,255
 		ld (term_fg),a
 
+		ld hl,_draw_char
+		ld (vdp_active_fn),hl
+
 		pop ix
 		ret
 
 term_putch:	; character in `a`
+		ld hl,(vdp_active_fn)
+		jp (hl)
+
+	.align 0x10
+vdp_palette:
+		db 0, 0b1100000, 0b1100, 0b1101100, 0b1, 0b1100001, 0b1101, 0b1101101
+		db 0b100110, 0b11100000, 0b11100, 0b11111100, 0b11, 0b11100011, 0b11111, 0b11111111
+
+_vdp_fn_set_color:
+		push de
+		ld hl,term_fg
+
+		cp 16
+		jr nc,@f
+
+		; For colors <= 15, use the VDP palette (otherwise treat as rgb332)
+		ld de,vdp_palette
+		add a,e
+		ld e,a
+		ld a,(de)
+	@@:
+		ld (hl),a
+		
+		ld hl,_draw_char
+		ld (vdp_active_fn),hl
+		pop de
+		ret
+
+_draw_char:
 		push ix
 		push iy
 		push af
+			; rotate through colours
+			;ld hl,term_fg
+			;dec (hl)
+			;jr nz,@f
+			;dec (hl)
+		;@@:
+		
+			ld ix,(_current_mode)
 
-		; rotate through colours
-		ld hl,term_fg
-		dec (hl)
-		jr nz,@f
-		dec (hl)
-	@@:
-	
-		ld ix,(_current_mode)
+			; find character y position
+			ld hl,(ix+6)	; screen.width
+			add hl,hl	; FONT_HEIGHT is 6
+			push hl
+			pop de
+			add hl,hl
+			add hl,de	; hl=screen.width*6
 
-		; find character y position
-		ld hl,(ix+6)	; screen.width
-		add hl,hl	; FONT_HEIGHT is 6
-		push hl
-		pop de
-		add hl,hl
-		add hl,de	; hl=screen.width*6
+			; hl=screen.width*8*curs_y
+			ld de,0
+			ld a,(curs_y)
+			ld e,a
+			call umul24
 
-		; hl=screen.width*8*curs_y
-		ld de,0
-		ld a,(curs_y)
-		ld e,a
-		call umul24
+			; seek x character pos in framebuffer
+			ld a,(curs_x)
+			ld b,a
+			ld c,FONT_WIDTH
+			mlt bc
+			add hl,bc
 
-		; seek x character pos in framebuffer
-		ld a,(curs_x)
-		ld b,a
-		ld c,FONT_WIDTH
-		mlt bc
-		add hl,bc
-
-		; add base framebuffer address
-		ld de,(fb_ptr)
-		add hl,de
+			; add base framebuffer address
+			ld de,(fb_ptr)
+			add hl,de
 		pop af
 
 		; handle special characters
+		cp 17
+		jp z,@handle_color
 		cp 13
 		jp z,@handle_cr
 		cp 10
@@ -257,6 +292,11 @@ term_putch:	; character in `a`
 		pop iy
 		pop ix
 		ret
+
+	@handle_color:
+		ld hl,_vdp_fn_set_color
+		ld (vdp_active_fn),hl
+		jr @end
 
 	@handle_cr:
 		xor a
