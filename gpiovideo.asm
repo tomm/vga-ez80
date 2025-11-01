@@ -192,11 +192,30 @@ video_set_mode:	; mode in `a`
 
 		; set scanline framebuffer offset data (this implements scanline doubling/quadrupling if mode needs)
 		ld ix,(fb_scanline_offsets)
-		ld hl,0
 		ld de,(iy+6) ; mode.width
 		ld bc,(iy+9) ; mode.height
+		ld iy,(iy+12) ; scan multiplier
+		call fill_scanline_offset_array
+	
+		pop iy
+		pop ix
+		ret
+
+; Params:
+;   ix: fb_scanline_offsets array address
+;   de: line stride (ie virtual framebuffer width in pixels)
+;   bc: number of pixel rows
+;   iy: scan multiplier (ie 2=doublescan)
+;
+; Array in ix will need to be [bc*iyl*3] bytes long.
+;   eg for 156x240 mode with doublescan (480 scanned out lines)
+;      there wil lbe de=156, bc=240, iyl=2
+; Output:
+;   array at [ix+0]..[ix+bc*iyl*3] will be filled with 24-bit scanline offsets
+fill_scanline_offset_array:
+		ld hl,0
 	@loop:	; framebuffer scanline offset only increments every 4 frames, to implement quadscan
-		ld a,(iy+12)	; mode.scan_multiplier
+		ld a,iyl
 	@@:
 		ld (ix+0),hl
 		lea ix,ix+3
@@ -208,9 +227,6 @@ video_set_mode:	; mode in `a`
 		ld a,b
 		or c
 		jr nz,@loop
-	
-		pop iy
-		pop ix
 		ret
 
 	.include "uart0.asm"

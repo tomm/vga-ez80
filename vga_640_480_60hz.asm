@@ -322,6 +322,9 @@ vga_scanline_grille_handler_pixeldata:
 		reti.lil
 
 	@end_section:
+		; mark end of frame
+		ld hl,frame_counter	; 4 cycles
+		inc (hl)		; 2 cycles
 		xor a
 		ld (_section_line_number),a
 		ld bc,vga_scanline_grille_handler_frontporch

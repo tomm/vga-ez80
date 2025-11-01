@@ -12,7 +12,7 @@
 		include "lib/print.asm"
 
 MOS_BOT: .equ 0xbc000
-TSR_LOC: .equ [MOS_BOT-0xa00]		; must be 0x100 aligned
+TSR_LOC: .equ [MOS_BOT-0x1000]		; must be 0x100 aligned
 
 start:
 		push iy
@@ -55,6 +55,7 @@ jumptable:
 		.dl api_getvideosetup		; a=2
 		.dl api_getmodeinfo		; a=3
 		.dl api_videostop		; a=4
+		.dl api_fillscanlineoffsetarray ; a=5
 
 rst20_api_handler:
 		push hl
@@ -114,6 +115,18 @@ api_getmodeinfo:
 api_videostop:
 		pop hl
 		call video_stop
+		ret.lil
+
+; Input: a=5
+;   ix: fb_scanline_offsets array address
+;   de: line stride (ie virtual framebuffer width in pixels)
+;   bc: number of pixel rows
+;   iy: scan multiplier (ie 2=doublescan)
+; Output:
+;   array at [ix+0]..[ix+bc*iyl*3] will be filled with 24-bit scanline offsets
+api_fillscanlineoffsetarray:
+		pop hl
+		call fill_scanline_offset_array
 		ret.lil
 
 USE_CUSTOM_KEYBOARD_BUFFER: .equ 0	; Do not need custom logic. Use rainbow MOS 2.5+
