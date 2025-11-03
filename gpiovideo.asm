@@ -53,19 +53,20 @@ _modes:
 		;	uint24_t height;
 		;	uint24_t scan_multiplier;    /* eg: 2 for doublescan */
 		; }
-		.dl vga_scanline_handler_vsync, 147, 156, 120, 4
-		.dl vga_scanline_handler_vsync, 147, 156, 160, 3
-		.dl vga_scanline_handler_vsync, 147, 156, 240, 2
-		.dl vga_scanline_handler_vsync, 147, 156, 480, 1
-		.dl vga_scanline_grille_handler_vsync, 147, 156, 120, 2
-		.dl vga_scanline_grille_handler_vsync, 147, 156, 240, 1
-		;.dl vga_640_350_scanline_handler_vsync, 147, 156, 116, 3
-		;.dl vga_640_350_scanline_handler_vsync, 147, 156, 175, 2
-		;.dl vga_640_350_scanline_handler_vsync, 147, 156, 350, 1
-		;.dl scanline_handler_vsync_15khz, 294, 310, 120, 4
-		;.dl scanline_handler_vsync_15khz, 294, 310, 160, 3
-		;.dl scanline_handler_vsync_15khz, 294, 310, 240, 2
-		;.dl scanline_handler_vsync_15khz, 294, 310, 480, 1
+		; Fast modes scanning every second line (~33% CPU free)
+		.dl scan_vga_31khz_480p_60hz_grille, 147, 156, 120, 2
+		.dl scan_vga_31khz_480p_60hz_grille, 147, 156, 240, 1
+
+		.dl scan_rgb_15khz_480p_30hz_grille, 294, 312, 120, 2
+		.dl scan_rgb_15khz_480p_30hz_grille, 294, 312, 240, 1
+		; Slow modes with all scanlines drawn ~6% free CPU
+		.dl scan_vga_31khz_480p_60hz, 147, 156, 120, 4
+		.dl scan_vga_31khz_480p_60hz, 147, 156, 160, 3
+		.dl scan_vga_31khz_480p_60hz, 147, 156, 240, 2
+		.dl scan_vga_31khz_480p_60hz, 147, 156, 480, 1
+
+		.dl scan_rgb_15khz_240p_60hz, 294, 312, 120, 2
+		.dl scan_rgb_15khz_240p_60hz, 294, 312, 240, 1
 
 ; Public video_setup struct
 video_setup:
@@ -230,6 +231,5 @@ fill_scanline_offset_array:
 		ret
 
 	.include "uart0.asm"
-	;.include "15khz.asm"
 	.include "vga_640_480_60hz.asm"
-	;.include "vga_640_350_70hz.asm"
+	.include "rgb_15khz.asm"

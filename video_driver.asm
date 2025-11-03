@@ -11,8 +11,9 @@
 		.db 1 ; ADL
 		include "lib/print.asm"
 
-MOS_BOT: .equ 0xbc000
-TSR_LOC: .equ [MOS_BOT-0x1000]		; must be 0x100 aligned
+;MOS_BOT: .equ 0xbc000
+;TSR_LOC: .equ [MOS_BOT-0x1000]		; must be 0x100 aligned
+TSR_LOC: .equ 0xb7e000	; 8k on-chip sram
 
 start:
 		push iy

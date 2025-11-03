@@ -11,7 +11,7 @@ USE_CUSTOM_KEYBOARD_BUFFER: .equ 1
 		include "gpiovideo.asm"
 		include "lib/print.asm"
 
-MODE:	.equ	5
+MODE:	.equ	3
 FB_BASE: .equ 0x50000
 
 ; GPIO usage:
