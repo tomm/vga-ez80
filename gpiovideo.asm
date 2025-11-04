@@ -44,7 +44,13 @@ PRT_START: .equ 0b10
 		.ds num
 	endmacro
 
-modestruct_len: .equ 15
+MODE_FLAG_SLOW: .equ 1
+MODE_FLAG_15KHZ: .equ 2
+MODE_FLAG_31KHZ: .equ 4
+MODE_FLAG_30HZ: .equ 8
+MODE_FLAG_60HZ: .equ 16
+
+modestruct_len: .equ 16
 _modes:
 		; struct Mode {
 		; 	void (*initial_scanline_handler_fn)();
@@ -55,18 +61,28 @@ _modes:
 		; }
 		; Fast modes scanning every second line (~33% CPU free)
 		.dl scan_vga_31khz_480p_60hz_grille, 147, 156, 120, 2
+		.db MODE_FLAG_31KHZ | MODE_FLAG_60HZ
 		.dl scan_vga_31khz_480p_60hz_grille, 147, 156, 240, 1
-
+		.db MODE_FLAG_31KHZ | MODE_FLAG_60HZ
 		.dl scan_rgb_15khz_480p_30hz_grille, 294, 312, 120, 2
+		.db MODE_FLAG_15KHZ | MODE_FLAG_30HZ
 		.dl scan_rgb_15khz_480p_30hz_grille, 294, 312, 240, 1
+		.db MODE_FLAG_15KHZ | MODE_FLAG_30HZ
 		; Slow modes with all scanlines drawn ~6% free CPU
 		.dl scan_vga_31khz_480p_60hz, 147, 156, 120, 4
+		.db MODE_FLAG_SLOW | MODE_FLAG_31KHZ | MODE_FLAG_60HZ
 		.dl scan_vga_31khz_480p_60hz, 147, 156, 160, 3
+		.db MODE_FLAG_SLOW | MODE_FLAG_31KHZ | MODE_FLAG_60HZ
 		.dl scan_vga_31khz_480p_60hz, 147, 156, 240, 2
+		.db MODE_FLAG_SLOW | MODE_FLAG_31KHZ | MODE_FLAG_60HZ
 		.dl scan_vga_31khz_480p_60hz, 147, 156, 480, 1
-
+		.db MODE_FLAG_SLOW | MODE_FLAG_31KHZ | MODE_FLAG_60HZ
 		.dl scan_rgb_15khz_240p_60hz, 294, 312, 120, 2
+		.db MODE_FLAG_15KHZ | MODE_FLAG_SLOW | MODE_FLAG_60HZ
 		.dl scan_rgb_15khz_240p_60hz, 294, 312, 240, 1
+		.db MODE_FLAG_15KHZ | MODE_FLAG_SLOW | MODE_FLAG_60HZ
+_modes_end:
+num_modes: .equ [_modes_end-_modes]/modestruct_len
 
 ; Public video_setup struct
 video_setup:
@@ -163,14 +179,26 @@ video_init:
 
 		ret
 
-video_set_mode:	; mode in `a`
-		push ix
-		push iy
+; In: a = mode number
+; Out: hl = mode struct ptr
+lookup_mode:
+		; mode number in 'a'
+		cp num_modes
+		jr nc,@invalid_mode
 		ld l,a
 		ld h,modestruct_len
 		mlt hl
 		ld de,_modes
 		add hl,de
+		ret
+	@invalid_mode:
+		ld hl,0
+		ret
+
+video_set_mode:	; mode in `a`
+		push ix
+		push iy
+		call lookup_mode
 		push hl
 		pop iy
 

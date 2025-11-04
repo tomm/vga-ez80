@@ -57,6 +57,7 @@ jumptable:
 		.dl api_getmodeinfo		; a=3
 		.dl api_videostop		; a=4
 		.dl api_fillscanlineoffsetarray ; a=5
+		.dl api_lookupmode		; a=6
 
 rst20_api_handler:
 		push hl
@@ -105,6 +106,7 @@ api_getvideosetup:
 ;    uint24_t width;
 ;    uint24_t height;
 ;    uint24_t scan_multiplier;
+;    uint8_t flags;
 ; }
 api_getmodeinfo:
 		pop hl
@@ -128,6 +130,16 @@ api_videostop:
 api_fillscanlineoffsetarray:
 		pop hl
 		call fill_scanline_offset_array
+		ret.lil
+
+; Input: a=6
+;	hl = mode number
+; Output:
+;	hl = mode info struct ptr (same structure as api_getmodeinfo returns)
+api_lookupmode:
+		pop hl
+		ld a,l
+		call lookup_mode
 		ret.lil
 
 USE_CUSTOM_KEYBOARD_BUFFER: .equ 0	; Do not need custom logic. Use rainbow MOS 2.5+
