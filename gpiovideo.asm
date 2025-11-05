@@ -62,23 +62,31 @@ _modes:
 		; Fast modes scanning every second line (~33% CPU free)
 		.dl scan_vga_31khz_480p_60hz_grille, 147, 156, 120, 2
 		.db MODE_FLAG_31KHZ | MODE_FLAG_60HZ
+
 		.dl scan_vga_31khz_480p_60hz_grille, 147, 156, 240, 1
 		.db MODE_FLAG_31KHZ | MODE_FLAG_60HZ
-		.dl scan_rgb_15khz_480p_30hz_grille, 294, 312, 120, 2
-		.db MODE_FLAG_15KHZ | MODE_FLAG_30HZ
-		.dl scan_rgb_15khz_480p_30hz_grille, 294, 312, 240, 1
-		.db MODE_FLAG_15KHZ | MODE_FLAG_30HZ
-		; Slow modes with all scanlines drawn ~6% free CPU
+
 		.dl scan_vga_31khz_480p_60hz, 147, 156, 120, 4
 		.db MODE_FLAG_SLOW | MODE_FLAG_31KHZ | MODE_FLAG_60HZ
+
 		.dl scan_vga_31khz_480p_60hz, 147, 156, 160, 3
 		.db MODE_FLAG_SLOW | MODE_FLAG_31KHZ | MODE_FLAG_60HZ
+
 		.dl scan_vga_31khz_480p_60hz, 147, 156, 240, 2
 		.db MODE_FLAG_SLOW | MODE_FLAG_31KHZ | MODE_FLAG_60HZ
+
 		.dl scan_vga_31khz_480p_60hz, 147, 156, 480, 1
 		.db MODE_FLAG_SLOW | MODE_FLAG_31KHZ | MODE_FLAG_60HZ
+
+		.dl scan_rgb_15khz_480p_30hz_grille, 294, 312, 120, 2
+		.db MODE_FLAG_15KHZ | MODE_FLAG_30HZ
+
+		.dl scan_rgb_15khz_480p_30hz_grille, 294, 312, 240, 1
+		.db MODE_FLAG_15KHZ | MODE_FLAG_30HZ
+
 		.dl scan_rgb_15khz_240p_60hz, 294, 312, 120, 2
 		.db MODE_FLAG_15KHZ | MODE_FLAG_SLOW | MODE_FLAG_60HZ
+
 		.dl scan_rgb_15khz_240p_60hz, 294, 312, 240, 1
 		.db MODE_FLAG_15KHZ | MODE_FLAG_SLOW | MODE_FLAG_60HZ
 _modes_end:
