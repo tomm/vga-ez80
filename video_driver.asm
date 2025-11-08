@@ -93,6 +93,8 @@ api_setmode:
 ;   uint24_t fb_scanline_offsets; /* pointer to array of 480 uint24_t, each
 ;                                    an offset applied to fb_ptr to find the
 ;                                    pixel data of a given scanline */
+;   uint24_t pre_image_callback; /* fn pointer, called shortly before image scanout */
+; }
 api_getvideosetup:
 		pop hl
 		ld iy,video_setup

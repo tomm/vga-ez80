@@ -98,6 +98,7 @@ video_setup:
 	frame_counter:	.db 0
 	fb_ptr:		.dl	0xb1000 ; [width*height] only 4k left for moslets...
 	fb_scanline_offsets: .dl     0xba240 ; [480*3] enough space for 156*240 mode
+	pre_image_callback: .dl ret_callback	; called one line before image scanout begins. last chance to swap buffers etc
 
 _current_mode:	.dl 0		; ptr into _modes
 
@@ -110,6 +111,8 @@ uart0_buf_pos:	.ds 3		; ptr into uart0_rx_buf
 uart0_rx_buf:	.ds 32
 
 saved_uart0_reg_ier:	.ds 1
+
+ret_callback:	ret
 
 video_stop:
 		; Turn off GPIO video scanout
