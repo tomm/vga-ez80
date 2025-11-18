@@ -137,7 +137,8 @@ macro DEJITTER
 	; now cycles lagged is in `a`
 	; negate it by a computed jump into nops
 	; (8 cycles for self-modify & jr)
-	and 0xf
+	ld b,a		; save the instruction lag in `b`
+	and 0xf		; make it safe for a jump :)
 	ld (@cmpjmp+1),a	; overwrite target of next instruction (jr)
 @cmpjmp:
 	jr $+2	; dummy jump target, as it will be overwritten
@@ -176,6 +177,7 @@ timer_int_handler:
 		ld hl,test_buffer
 		ld de,(test_position)
 		add hl,de
+		ld a,b
 		ld (hl),a
 		inc de	
 		ld (test_position),de

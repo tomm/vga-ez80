@@ -32,54 +32,38 @@ start:
 		ld iy,video_setup
 		ld hl,scanline_offsets
 		ld (iy+4),hl
-		ld hl,FB_BASE
+		ld hl,[FB_BASE+50] ; offset to right a bit to centre saturn image
 		ld (iy+1),hl
 
 		ld a,MODE
 		call video_set_mode
 
-		; set up a 512x512 virtual framebuffer
+		; set up a 256x120 virtual framebuffer
 		ld ix,scanline_offsets
-		ld de,512
+		ld de,256
 		ld bc,240
-		ld iy,1
+		ld iy,2		; double-scan (and grille means 120 lines out of 480)
 		call fill_scanline_offset_array
 
 		; load image
 		ld a,1		; api_mos_load
 		ld hl,image_filename
 		ld de,FB_BASE
-		ld bc,[512*512]
+		ld bc,[256*179]
 		rst.lil 8
 
-		; (hl) is frame_counter
-		ld bc,0
-		ld de,FB_BASE
-		ld iy,video_setup
 	@mainloop:
+		call wibble_wobble
+
 		; wait for next frame
+		ld iy,video_setup
 		xor a
 		ld (iy+0),a
 	@@:
 		ld a,(iy+0)
-		or a
-		jr z,@b
+		cp 8
+		jr c,@b
 		
-		; 'hardware' scroll the framebuffer
-		ld hl,0
-		inc c
-		ld a,c
-		call sin
-		ld h,a
-
-		ld a,c
-		add a,64
-		call sin
-		ld l,a
-		add hl,hl
-		add hl,de
-		
-		ld (iy+1),hl
 		jp @mainloop
 
 		call video_stop
@@ -88,8 +72,55 @@ start:
 		ld hl,0
 		ret
 
+angle:		db 0
+
+wibble_wobble:
+		push iy
+		out (0x10),a
+		ld b,80
+		ld iy,scanline_offsets+[3*158]
+		ld hl,scanline_offsets+[3*160]
+		ld a,(angle)
+	@loop:
+		ld de,(iy+0)
+		inc a
+		push af
+		push bc
+			call sin
+			srl a
+			srl a
+			ld c,a
+			ld a,80
+			sub a,b
+			ld b,a
+			mlt bc
+			ld a,b
+			
+
+			add a,e
+			ld e,a
+			ld (hl),de
+		pop bc
+		pop af
+		dec iy
+		dec iy
+		dec iy
+		dec iy
+		dec iy
+		dec iy
+		inc hl
+		inc hl
+		inc hl
+		djnz @loop
+
+		ld (angle),a
+
+		pop iy
+		ret
+			
+
 		.include "sin.asm"
 
-image_filename:	db "pictures/sc2000_512x512.raw",0
+image_filename:	db "examples/saturn_256x179.raw",0
 kb_event:	ds 4
-scanline_offsets:
+scanline_offsets: ds [240*3]

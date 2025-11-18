@@ -184,6 +184,11 @@ macro HSYNC_PULSE_31KHZ_END_VSYNC endcount, next_handler
 		; process contents of uart0_rx_buf
 		ld hl,uart0_rx_buf
 		ld de,(uart0_buf_pos)
+		; zero the buffer length before we start pushing bytes to mos.
+		; this allows the next scanline to begin pushing new data
+		; without a race, PROVIDING that our pushing data here is
+		; faster than new data accrues with each scanline (which will be so)
+		ld (uart0_buf_pos),hl
 	@loop:	or a
 		sbc hl,de
 		jr z,@end
@@ -209,10 +214,6 @@ macro HSYNC_PULSE_31KHZ_END_VSYNC endcount, next_handler
 		inc hl
 		jr @loop
 	@end:
-		; clear uart0 buf
-		ld hl,uart0_rx_buf
-		ld (uart0_buf_pos),hl
-
 		pop hl
 		pop de
 		pop bc

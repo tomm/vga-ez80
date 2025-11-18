@@ -186,6 +186,11 @@ macro HSYNC_PULSE_15KHZ_END_VSYNC endcount, next_handler
 		; process contents of uart0_rx_buf
 		ld hl,uart0_rx_buf
 		ld de,(uart0_buf_pos)
+		; zero the buffer length before we start pushing bytes to mos.
+		; this allows the next scanline to begin pushing new data
+		; without a race, PROVIDING that our pushing data here is
+		; faster than new data accrues with each scanline (which will be so)
+		ld (uart0_buf_pos),hl
 	@loop:	or a
 		sbc hl,de
 		jr z,@end
@@ -211,10 +216,6 @@ macro HSYNC_PULSE_15KHZ_END_VSYNC endcount, next_handler
 		inc hl
 		jr @loop
 	@end:
-		; clear uart0 buf
-		ld hl,uart0_rx_buf
-		ld (uart0_buf_pos),hl
-
 		pop hl
 		pop de
 		pop bc
@@ -405,6 +406,8 @@ _rgb_15khz_scanline_handler_pixeldata:
 		otirx			; 2 + 3 (+ 3*155 accounted for in next section)
 		; 470 cycles: visible area (3*155=465 from otirx)
 		out (PC_DR),a		; 3 cycles clear pixel data
+		nop
+		nop
 		nop
 		nop
 		; 12 cycles front porch (10 eaten by HSYNC_ONLY_15KHZ setup)
