@@ -97,15 +97,16 @@ macro HSYNC_PULSE_ONLY_WITH_SCANLINE_INCREMENT endcount
 		push af		; 4 cyc
 		UART0_RX_POLL_32_CYC
 		pop af		; 4 cyc
-		REP_NOP 12
+
 		or 0b10000000		; 2 cycles (hsync off)
 		ld e,a			; 1 cycles
 
 		ld a,(_section_line_number)	; 5 cycles
 		inc a				; 1
-		cp endcount			; 1
+		cp endcount			; 2
 		ld (_section_line_number),a	; 5 cycles
 
+		REP_NOP 11
 		out0 (PD_DR),e 	; 4 cycles
 endmacro
 
