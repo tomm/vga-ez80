@@ -96,14 +96,14 @@ macro HSYNC_PULSE_ONLY_WITH_SCANLINE_INCREMENT_15KHZ endcount
 		push af		; 4 cyc
 		UART0_RX_POLL_32_CYC
 		pop af		; 4 cyc
-		REP_NOP 12
+		REP_NOP 11
 		REP_NOP 71
 		or 0b10000000		; 2 cycles (hsync off)
 		ld e,a			; 1 cycles
 
 		ld a,(_section_line_number)	; 5 cycles
 		inc a				; 1
-		cp endcount			; 1
+		cp endcount			; 2
 		ld (_section_line_number),a	; 5 cycles
 
 		out0 (PD_DR),e 	; 4 cycles
@@ -445,13 +445,14 @@ _rgb_15khz_scanline_handler_pixeldata:
 		ld a,0			; 2 cycles
 		jp nz,@loop		; 5 cycles when taken (4 not taken)
 
-		REP_NOP 6
+		; now in first line of vertical front-porch. Have already provided hsync
+		; so now we clean up and reti
+		pop iy				; 5 cycles
+		pop ix				; 5 cycles
 
-		; now in 'visible area' portion of first line of v.front porch
-		; do hsync pulse of next blank line, then reti
-		; to ensure the timer for the line after isn't missed
+		; ack timer interrupt since we have overrun
+		in0 a,(TMR1_CTL)
 
-		; 470 cycle 'visible area' minus 4 from not-taken `jp`
 		; mark end of frame
 		ld hl,frame_counter	; 4 cycles
 		inc (hl)		; 2 cycles
@@ -461,22 +462,6 @@ _rgb_15khz_scanline_handler_pixeldata:
 		ld bc,_rgb_15khz_scanline_handler_frontporch ; 4 cycles
 		ld hl,(_timer1_int_vector)	; 7 cycles
 		ld (hl),bc			; 5 cycles
-		pop iy				; 5 cycles
-		pop ix				; 5 cycles
-		REP_NOP 428
-		REP_NOP	470
-
-		; 12 cycles front porch (10 eaten by HSYNC_ONLY_15KHZ setup)
-		REP_NOP 12
-		REP_NOP 2
-
-		; 71 cycles hsync
-		HSYNC_ONLY_15KHZ
-
-		; ack timer interrupt since we have overrun
-		ld bc,TMR1_CTL
-		in a,(bc)	; ACK
-		
 		exx
 		ex af,af'
 		ei
