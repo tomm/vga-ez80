@@ -56,21 +56,21 @@ GPIO C pin 0-7: pixel data (RGB332)
 eZ80 GPIOD-PIN6 ------------------------ VGA vsync
 eZ80 GPIOD-PIN7 ------------------------ VGA hsync
 
-eZ80 GPIOC-PIN0 -----{R 840Ω}---+------- VGA blue
+eZ80 GPIOC-PIN0 -----{R 1000Ω}---+------- VGA blue
                                 |
-eZ80 GPIOC-PIN1 -----{R 420Ω}---|
+eZ80 GPIOC-PIN1 -----{R 510Ω}---|
 
-eZ80 GPIOC-PIN2 -----{R 1470Ω}--+------- VGA green
+eZ80 GPIOC-PIN2 -----{R 2000Ω}--+------- VGA green
                                 |
-eZ80 GPIOC-PIN3 -----{R 980Ω}---+
+eZ80 GPIOC-PIN3 -----{R 1000Ω}---+
                                 |
-eZ80 GPIOC-PIN4 -----{R 490Ω}---+
+eZ80 GPIOC-PIN4 -----{R 510Ω}---+
 
-eZ80 GPIOC-PIN5 -----{R 1470Ω}--+------- VGA red
+eZ80 GPIOC-PIN5 -----{R 2000Ω}--+------- VGA red
                                 |
-eZ80 GPIOC-PIN6 -----{R 980Ω}---+
+eZ80 GPIOC-PIN6 -----{R 1000Ω}---+
                                 |
-eZ80 GPIOC-PIN7 -----{R 490Ω}---+
+eZ80 GPIOC-PIN7 -----{R 510Ω}---+
 ```
 
 ## The prototypes

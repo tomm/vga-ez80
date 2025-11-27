@@ -54,11 +54,18 @@ macro DEJITTER_31KHZ_PRT
 
 	; convert to number of cycles lagged (by the instruction executing when interrupt was due)
 	ld b,a
-	ld a,0x25	; 0x25 determined by experiment. will be invalidated if any code on interrupt entry are changed
+	ld a,0x29	; 0x29 determined by experiment. will be invalidated if any code on interrupt entry are changed
 			; (or PRT counter reset value changed)
 	sub b
-	; now cycles lagged is in `a`
-	; negate it by a computed jump into nops
+	; now cycles lagged (+4) is in `a`
+	; Why +4? we want 16 nops to ensure unexpected values don't
+	; jump us somewhere weird (see `and 0xf`), but don't want to
+	; execute any more nops than needed. expected lag cycles
+	; should be 0-9, so +4 takes us further towards the end
+	; of the nop region wasting fewer cycles. why not +5? +6?
+	; yeah maybe could be
+
+	; Negate lag by computed jump into nops
 	; (8 cycles for self-modify & jr)
 	and 0xf
 	ld (@cmpjmp+1),a	; overwrite target of next instruction (jr)
@@ -291,7 +298,7 @@ vga_scanline_grille_handler_pixeldata:
 		or 0b10000000		; 2 cycles (hsync off)
 		out0 (PD_DR),a 	; 4 cycles
 
-		; 35 cycles h.back porch (5 unused for start of loop)
+	; 35 cycles h.back porch (5 unused for start of loop)
 		REP_NOP 8
 		; update the framebuffer pointer (26 cycles)
 		xor a			; 1 cycle
@@ -311,27 +318,39 @@ vga_scanline_grille_handler_pixeldata:
 		; now in non-scanned line of grille
 		; horiz front porch
 		REP_NOP 2
-		; 71 cycles hsync
-		HSYNC_ONLY
-		
+	; 71 cycles hsync
+		; 10 cycles pre-assertion (properly belonging to front porch)
+		in0 a,(PD_DR)	; 4 cycles
+		res 7,a		; 2 cycles
+		out0 (PD_DR),a	; 4 cycles
+		; 71 cycles asserted
+		push af		; 4 cyc
+		UART0_RX_POLL_32_CYC
+		pop af		; 4 cyc
+
+		or 0b10000000		; 2 cycles (hsync off)
+		ld e,a			; 1 cycles
 		; ack timer interrupt since we have overrun
-		ld bc,TMR1_CTL
-		in a,(bc)	; ACK
-		
-		; increment _section_line_number
+		in0 a,(TMR1_CTL)	; 4 cycles
+
 		ld a,(_section_line_number)	; 5 cycles
 		inc a				; 1
-		cp 240			; 1
+		cp 240			; 2
 		ld (_section_line_number),a	; 5 cycles
-
-	; Then GTFO
-		jr z,@end_section
-		exx
-		ex af,af'
+		jr z,@end_section	; 2 not taken, 4 taken
+		REP_NOP 4
+		ex af,af'		; 1
+		; de-assert hsync
+		out0 (PD_DR),e 	; 4 cycles
+		exx			; 1
 		ei
 		reti.lil
 
 	@end_section:
+		REP_NOP 3
+		; de-assert hsync
+		out0 (PD_DR),e 	; 4 cycles
+
 		; mark end of frame
 		ld hl,frame_counter	; 4 cycles
 		inc (hl)		; 2 cycles
@@ -348,16 +367,15 @@ vga_scanline_grille_handler_pixeldata:
 ; Full 480 line image scanout
 scan_vga_31khz_480p_60hz:
 vga_scanline_handler_frontporch:
+		; only 9 because 1 line's hsync is handled by end of vga_scanline_handler_pixeldata (image section)
 		HSYNC_PULSE_31KHZ 9, vga_scanline_handler_vsync
 vga_scanline_handler_vsync:
 		HSYNC_VSYNC_PULSE_31KHZ 2, vga_scanline_handler_backporch_firstline
 vga_scanline_handler_backporch_firstline:
 		HSYNC_PULSE_31KHZ_END_VSYNC 1, vga_scanline_handler_backporch
 vga_scanline_handler_backporch:
-		HSYNC_PULSE_31KHZ 31, vga_scanline_handler_pixeldata
+		HSYNC_PULSE_31KHZ 32, vga_scanline_handler_pixeldata
 vga_scanline_handler_pixeldata:
-	; Includes 1 scanline of vertical front porch at end of image scanout
-
 		ex af,af'
 		exx
 		ld bc,TMR1_CTL
@@ -435,13 +453,14 @@ vga_scanline_handler_pixeldata:
 		ld a,0			; 2 cycles
 		jp nz,@loop		; 5 cycles when taken (4 not taken)
 
-		REP_NOP 6
+		; now in first line of vertical front-porch. Have already provided hsync
+		; so now we clean up and reti
+		pop iy				; 5 cycles
+		pop ix				; 5 cycles
 
-		; now in 'visible area' portion of first line of v.front porch
-		; do hsync pulse of next blank line, then reti
-		; to ensure the timer for the line after isn't missed
+		; ack timer interrupt since we have overrun
+		in0 a,(TMR1_CTL)
 
-		; 470 cycle 'visible area' minus 4 from not-taken `jp`
 		; mark end of frame
 		ld hl,frame_counter	; 4 cycles
 		inc (hl)		; 2 cycles
@@ -451,20 +470,6 @@ vga_scanline_handler_pixeldata:
 		ld bc,vga_scanline_handler_frontporch ; 4 cycles
 		ld hl,(_timer1_int_vector)	; 7 cycles
 		ld (hl),bc			; 5 cycles
-		pop iy				; 5 cycles
-		pop ix				; 5 cycles
-		REP_NOP 428
-
-		; 12 cycles front porch (10 eaten by HSYNC_ONLY setup)
-		REP_NOP 2
-
-		; 71 cycles hsync
-		HSYNC_ONLY
-
-		; ack timer interrupt since we have overrun
-		ld bc,TMR1_CTL
-		in a,(bc)	; ACK
-		
 		exx
 		ex af,af'
 		ei
