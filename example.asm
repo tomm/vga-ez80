@@ -135,4 +135,4 @@ start:
 		ret
 
 kb_event:	ds 4
-image_filename: db "pictures/andromeda.raw",0
+image_filename: db "examples/andromeda.raw",0

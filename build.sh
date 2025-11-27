@@ -7,3 +7,4 @@ ez80asm video_driver.asm
 ez80asm rst20_api_example.asm
 ez80asm example-virtualfb.asm
 ez80asm examples/saturn.asm
+ez80asm examples/example-z80.asm

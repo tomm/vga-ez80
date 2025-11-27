@@ -1,12 +1,18 @@
 	.assume adl=1
 
 	macro print_asciz literal
+		push hl
+		push bc
+		push de
 		jr @after
 	@lit:	asciz literal
 	@after:	ld hl,@lit
 		ld bc,0
 		xor a
 		rst.lil 0x18
+		pop de
+		pop bc
+		pop hl
 	endmacro
 
 	macro print_s str 

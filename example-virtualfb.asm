@@ -90,6 +90,6 @@ start:
 
 		.include "sin.asm"
 
-image_filename:	db "pictures/sc2000_512x512.raw",0
+image_filename:	db "examples/sc2000_512x512.raw",0
 kb_event:	ds 4
 scanline_offsets:

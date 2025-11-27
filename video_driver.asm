@@ -125,10 +125,12 @@ api_videostop:
 ; Input: a=5
 ;   ix: fb_scanline_offsets array address
 ;   de: line stride (ie virtual framebuffer width in pixels)
-;   bc: number of pixel rows
+;   bc: number of lines
 ;   iy: scan multiplier (ie 2=doublescan)
 ; Output:
 ;   array at [ix+0]..[ix+bc*iyl*3] will be filled with 24-bit scanline offsets
+;
+; See example-virtualfb.asm
 api_fillscanlineoffsetarray:
 		pop hl
 		call fill_scanline_offset_array
