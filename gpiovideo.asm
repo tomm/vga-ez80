@@ -167,7 +167,11 @@ video_init:
 
 		; find address of ram timer1 interrupt vector
 		; - so we can manipulate it directly and quickly
-		ld.sis hl,(0x10c)
+		ld hl,0
+		ld a,(0x10c)
+		ld l,a
+		ld a,(0x10d)
+		ld h,a
 		inc hl ; skip over call (0xc3)
 		ld hl,(hl) ; load address of RAM jump target
 		ld a,0xc3
