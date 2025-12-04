@@ -182,6 +182,7 @@ macro HSYNC_PULSE_15KHZ_END_VSYNC endcount, next_handler
 		ld hl,(pre_image_callback)
 		jp (hl)
 	@callback_ret:
+		INCREMENT_MOS_SYSVAR_TIME
 
 		; process contents of uart0_rx_buf
 		ld hl,uart0_rx_buf

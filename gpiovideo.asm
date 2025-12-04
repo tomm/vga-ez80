@@ -110,6 +110,8 @@ _section_line_number:
 uart0_buf_pos:	.ds 3		; ptr into uart0_rx_buf
 uart0_rx_buf:	.ds 32
 
+mos_sysvar_time: .ds 3
+
 saved_uart0_reg_ier:	.ds 1
 
 ret_callback:	ret
@@ -124,6 +126,14 @@ video_stop:
 		ret
 
 video_init:
+		; Get pointer to mos sysvar_time, since we will be incrementing
+		; that by two per frame (for a little backwards compatibility)
+		push ix
+		ld a,8  ; moscall mos_sysvars
+		rst.lil 8
+		ld (mos_sysvar_time),ix
+		pop ix
+
 		; turn off uart0 interrupt. we have to poll for uart0 rx
 		in0 a,(UART0_REG_IER)
 		ld (saved_uart0_reg_ier),a
@@ -273,6 +283,7 @@ fill_scanline_offset_array:
 		jr nz,@loop
 		ret
 
+	.include "common.asm"
 	.include "uart0.asm"
 	.include "vga_640_480_60hz.asm"
 	.include "rgb_15khz.asm"
