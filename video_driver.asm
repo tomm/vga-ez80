@@ -31,7 +31,13 @@ start:
 		cp 23
 		jr z,@cannot_set_resetvector
 
-		print_asciz "Loaded GPIO video driver at $"
+		ld hl,@usage_msg
+		ld bc,0
+		xor a
+		rst.lil 0x18
+
+		print_crlf
+		print_asciz "Loaded GPIO video driver v1 at $"
 		ld hl,TSR_LOC
 		call print_hex24
 		print_c '-'
@@ -47,6 +53,19 @@ start:
 		print_asciz "mos_api_setresetvector not supported (rainbow mos 2.5+ needed)"
 		print_crlf
 		jr @exit
+	
+	@usage_msg:
+		db "Connect video output circuitry to eZ80 GPIOs:\r\n"
+		db "eZ80 GPIOD-PIN6 -----{R 75 ohm}------------ VGA vsync\r\n"
+		db "eZ80 GPIOD-PIN7 -----{R 75 ohm}------------ VGA hsync\r\n\r\n"
+		db "eZ80 GPIOC-PIN0 -----{R 1000 ohm}--+------- VGA blue\r\n"
+		db "eZ80 GPIOC-PIN1 -----{R 510 ohm}---|\r\n\r\n"
+		db "eZ80 GPIOC-PIN2 -----{R 2000 ohm}--+------- VGA green\r\n"
+		db "eZ80 GPIOC-PIN3 -----{R 1000 ohm}--+\r\n"
+		db "eZ80 GPIOC-PIN4 -----{R 510 ohm}---|\r\n\r\n"
+		db "eZ80 GPIOC-PIN5 -----{R 2000 ohm}--+------- VGA red\r\n"
+		db "eZ80 GPIOC-PIN6 -----{R 1000 ohm}--+\r\n"
+		db "eZ80 GPIOC-PIN7 -----{R 510 ohm}---|\r\n",0
 
 tsr_begin:
 	.relocate TSR_LOC
