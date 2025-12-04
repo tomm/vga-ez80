@@ -53,8 +53,8 @@ GPIO D pin 6: vsync
 GPIO C pin 0-7: pixel data (RGB332)
 
 ```
-eZ80 GPIOD-PIN6 ------------------------ VGA vsync
-eZ80 GPIOD-PIN7 ------------------------ VGA hsync
+eZ80 GPIOD-PIN6 -----{R 75Ω}------------ VGA vsync
+eZ80 GPIOD-PIN7 -----{R 75Ω}------------ VGA hsync
 
 eZ80 GPIOC-PIN0 -----{R 1000Ω}---+------- VGA blue
                                 |
