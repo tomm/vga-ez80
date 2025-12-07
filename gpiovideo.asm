@@ -78,16 +78,16 @@ _modes:
 		.dl scan_vga_31khz_480p_60hz, 147, 156, 480, 1
 		.db MODE_FLAG_SLOW | MODE_FLAG_31KHZ | MODE_FLAG_60HZ
 
-		.dl scan_rgb_15khz_480p_30hz_grille, 294, 312, 120, 2
+		.dl scan_rgb_15khz_480p_30hz_grille, 294, 320, 120, 2
 		.db MODE_FLAG_15KHZ | MODE_FLAG_30HZ
 
-		.dl scan_rgb_15khz_480p_30hz_grille, 294, 312, 240, 1
+		.dl scan_rgb_15khz_480p_30hz_grille, 294, 320, 240, 1
 		.db MODE_FLAG_15KHZ | MODE_FLAG_30HZ
 
-		.dl scan_rgb_15khz_240p_60hz, 294, 312, 120, 2
+		.dl scan_rgb_15khz_240p_60hz, 294, 320, 120, 2
 		.db MODE_FLAG_15KHZ | MODE_FLAG_SLOW | MODE_FLAG_60HZ
 
-		.dl scan_rgb_15khz_240p_60hz, 294, 312, 240, 1
+		.dl scan_rgb_15khz_240p_60hz, 294, 320, 240, 1
 		.db MODE_FLAG_15KHZ | MODE_FLAG_SLOW | MODE_FLAG_60HZ
 _modes_end:
 num_modes: .equ [_modes_end-_modes]/modestruct_len
@@ -99,6 +99,7 @@ video_setup:
 	fb_ptr:		.dl	0xb1000 ; [width*height] only 4k left for moslets...
 	fb_scanline_offsets: .dl     0xba240 ; [480*3] enough space for 156*240 mode
 	pre_image_callback: .dl ret_callback	; called one line before image scanout begins. last chance to swap buffers etc
+	; pre_image_callback must preserve ix,iy. can stomp the rest. no shadow regs.
 
 _current_mode:	.dl 0		; ptr into _modes
 

@@ -120,7 +120,7 @@ macro HSYNC_VSYNC_PULSE_15KHZ endcount, next_handler
 		HSYNC_PULSE_ONLY_WITH_SCANLINE_INCREMENT_15KHZ endcount
 
 	; 35 cycles back porch -- assert vsync at end of this (start of visible section)
-		REP_NOP 29
+		REP_NOP 17
 		REP_NOP 35
 		res 6,e		; 2 cycles
 		out0 (PD_DR),e	; 4 cycles
@@ -295,15 +295,14 @@ _rgb_15khz_scanline_grille_handler_pixeldata:
 		out0 (PD_DR),a 	; 4 cycles
 
 		; 35 cycles h.back porch (5 unused for start of loop)
-		REP_NOP 8
-		REP_NOP 35
+		REP_NOP 31
 		; update the framebuffer pointer (26 cycles)
 		xor a			; 1 cycle
 		ld bc,(hl)		; 5 cycles
 		ld hl,(fb_ptr)		; 7 cycles
 		add hl,bc		; 1 cycle
 		ld de,PC_DR		; 4 cycles
-		ld bc,312		; 4 cycles
+		ld bc,320		; 4 cycles
 
 		; 5 cycles of h.back porch
 		otirx			; 2 + 3 (+ 3*155 accounted for in next section)
@@ -311,10 +310,11 @@ _rgb_15khz_scanline_grille_handler_pixeldata:
 		out (PC_DR),a		; 3 cycles clear pixel data
 		nop
 		nop
+		nop
+		nop
 
 		; now in non-scanned line of grille
 		; horiz front porch
-		REP_NOP 12
 		REP_NOP 2
 		; 71 cycles hsync
 		HSYNC_ONLY_15KHZ
@@ -391,8 +391,7 @@ _rgb_15khz_scanline_handler_pixeldata:
 		out0 (PD_DR),a 	; 4 cycles
 
 		; 35 cycles h.back porch (5 unused for start of loop)
-		REP_NOP 4
-		REP_NOP 35
+		REP_NOP 27
 		; update the framebuffer pointer (26 cycles)
 		xor a			; 1 cycle
 		ld hl,(fb_ptr)		; 7 cycles
@@ -400,7 +399,7 @@ _rgb_15khz_scanline_handler_pixeldata:
 		add hl,bc		; 1 cycle
 		lea iy,iy+3		; 3 cycles
 		ld de,PC_DR		; 4 cycles
-		ld bc,312		; 4 cycles
+		ld bc,320		; 4 cycles
 	; 480 lines
 	@loop:
 		; 5 cycles of h.back porch
@@ -412,7 +411,6 @@ _rgb_15khz_scanline_handler_pixeldata:
 		nop
 		nop
 		; 12 cycles front porch (10 eaten by HSYNC_ONLY_15KHZ setup)
-		REP_NOP 12
 		REP_NOP 2
 		in0 a,(PD_DR)	; 4 cycles
 		res 7,a		; 2 cycles
@@ -429,13 +427,12 @@ _rgb_15khz_scanline_handler_pixeldata:
 		add hl,bc		; 1 cycle
 		lea iy,iy+3		; 3 cycles
 		ld de,PC_DR		; 4 cycles
-		ld bc,312		; 4 cycles
+		ld bc,320		; 4 cycles
 
 		or 0b10000000		; 2 cycles (hsync off)
 		out0 (PD_DR),a 	; 4 cycles
 		; 35 cycles back porch (5 cycles unused to donate to start of loop)
-		REP_NOP 35
-		REP_NOP 8
+		REP_NOP 31
 		; long-winded way of using ix as a 16-bit loop counter...
 		dec ix			; 2 cycles
 		push bc			; 4 cycles
