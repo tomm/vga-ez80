@@ -254,17 +254,7 @@ macro HSYNC_PULSE_15KHZ endcount, next_handler
 		reti.lil
 endmacro
 
-; 480 scanline grille scanout (only draw every second scanline)
-scan_rgb_15khz_480p_30hz_grille:
-_rgb_15khz_scanline_grille_handler_frontporch:
-		HSYNC_PULSE_15KHZ 10, _rgb_15khz_scanline_grille_handler_vsync
-_rgb_15khz_scanline_grille_handler_vsync:
-		HSYNC_VSYNC_PULSE_15KHZ 2, _rgb_15khz_scanline_grille_handler_backporch_firstline
-_rgb_15khz_scanline_grille_handler_backporch_firstline:
-		HSYNC_PULSE_15KHZ_END_VSYNC 1, _rgb_15khz_scanline_grille_handler_backporch
-_rgb_15khz_scanline_grille_handler_backporch:
-		HSYNC_PULSE_15KHZ 32, _rgb_15khz_scanline_grille_handler_pixeldata
-_rgb_15khz_scanline_grille_handler_pixeldata:
+macro RGB_15KHZ_GRILLE_PIXELDATA numlines, frontporch_handler
 		ex af,af'
 		exx
 		ld bc,TMR1_CTL
@@ -326,7 +316,7 @@ _rgb_15khz_scanline_grille_handler_pixeldata:
 		; increment _section_line_number
 		ld a,(_section_line_number)	; 5 cycles
 		inc a				; 1
-		cp 240			; 1
+		cp numlines			; 1
 		ld (_section_line_number),a	; 5 cycles
 
 	; Then GTFO
@@ -342,24 +332,16 @@ _rgb_15khz_scanline_grille_handler_pixeldata:
 		inc (hl)		; 2 cycles
 		xor a
 		ld (_section_line_number),a
-		ld bc,_rgb_15khz_scanline_grille_handler_frontporch
+		ld bc,frontporch_handler
 		ld hl,(_timer1_int_vector)
 		ld (hl),bc
 		exx
 		ex af,af'
 		ei
 		reti.lil
+endmacro
 
-scan_rgb_15khz_240p_60hz:
-_rgb_15khz_scanline_handler_frontporch:
-		HSYNC_PULSE_15KHZ 4, _rgb_15khz_scanline_handler_vsync
-_rgb_15khz_scanline_handler_vsync:
-		HSYNC_VSYNC_PULSE_15KHZ 1, _rgb_15khz_scanline_handler_backporch_firstline
-_rgb_15khz_scanline_handler_backporch_firstline:
-		HSYNC_PULSE_15KHZ_END_VSYNC 1, _rgb_15khz_scanline_handler_backporch
-_rgb_15khz_scanline_handler_backporch:
-		HSYNC_PULSE_15KHZ 14, _rgb_15khz_scanline_handler_pixeldata
-_rgb_15khz_scanline_handler_pixeldata:
+macro RGB_15KHZ_NOYIELD_PIXELDATA numlines, frontporch_handler
 	; Includes 1 scanline of vertical front porch at end of image scanout
 
 		ex af,af'
@@ -382,7 +364,7 @@ _rgb_15khz_scanline_handler_pixeldata:
 		push ix			; 5 cycles
 		push iy			; 5 cycles
 		; loop counter in ix
-		ld ix,240		; 5 cycles
+		ld ix,numlines		; 5 cycles
 		ld iy,(fb_scanline_offsets)	; 8 cycles
 		REP_NOP 2
 		REP_NOP 71
@@ -457,10 +439,60 @@ _rgb_15khz_scanline_handler_pixeldata:
 		; mark: go to vertical front porch next
 		xor a				; 1 cycle
 		ld (_section_line_number),a	; 5 cycles
-		ld bc,_rgb_15khz_scanline_handler_frontporch ; 4 cycles
+		ld bc,frontporch_handler ; 4 cycles
 		ld hl,(_timer1_int_vector)	; 7 cycles
 		ld (hl),bc			; 5 cycles
 		exx
 		ex af,af'
 		ei
 		reti.lil
+endmacro
+
+scan_rgb_15khz_240p_60hz_grille:
+_rgb_15khz_240p_scanline_grille_handler_frontporch:
+		HSYNC_PULSE_15KHZ 5, _rgb_15khz_240p_scanline_grille_handler_vsync
+_rgb_15khz_240p_scanline_grille_handler_vsync:
+		HSYNC_VSYNC_PULSE_15KHZ 1, _rgb_15khz_240p_scanline_grille_handler_backporch_firstline
+_rgb_15khz_240p_scanline_grille_handler_backporch_firstline:
+		HSYNC_PULSE_15KHZ_END_VSYNC 1, _rgb_15khz_240p_scanline_grille_handler_backporch
+_rgb_15khz_240p_scanline_grille_handler_backporch:
+		HSYNC_PULSE_15KHZ 15, _rgb_15khz_240p_scanline_grille_handler_pixeldata
+_rgb_15khz_240p_scanline_grille_handler_pixeldata:
+		RGB_15KHZ_GRILLE_PIXELDATA 120, _rgb_15khz_240p_scanline_grille_handler_frontporch
+
+scan_rgb_15khz_288p_60hz_grille:
+_rgb_15khz_288p_scanline_grille_handler_frontporch:
+		HSYNC_PULSE_15KHZ 5, _rgb_15khz_288p_scanline_grille_handler_vsync
+_rgb_15khz_288p_scanline_grille_handler_vsync:
+		HSYNC_VSYNC_PULSE_15KHZ 1, _rgb_15khz_288p_scanline_grille_handler_backporch_firstline
+_rgb_15khz_288p_scanline_grille_handler_backporch_firstline:
+		HSYNC_PULSE_15KHZ_END_VSYNC 1, _rgb_15khz_288p_scanline_grille_handler_backporch
+_rgb_15khz_288p_scanline_grille_handler_backporch:
+		HSYNC_PULSE_15KHZ 15, _rgb_15khz_288p_scanline_grille_handler_pixeldata
+_rgb_15khz_288p_scanline_grille_handler_pixeldata:
+		RGB_15KHZ_GRILLE_PIXELDATA 144, _rgb_15khz_288p_scanline_grille_handler_frontporch
+
+scan_rgb_15khz_240p_60hz:
+_rgb_15khz_240p_scanline_handler_frontporch:
+		HSYNC_PULSE_15KHZ 4, _rgb_15khz_240p_scanline_handler_vsync
+_rgb_15khz_240p_scanline_handler_vsync:
+		HSYNC_VSYNC_PULSE_15KHZ 1, _rgb_15khz_240p_scanline_handler_backporch_firstline
+_rgb_15khz_240p_scanline_handler_backporch_firstline:
+		HSYNC_PULSE_15KHZ_END_VSYNC 1, _rgb_15khz_240p_scanline_handler_backporch
+_rgb_15khz_240p_scanline_handler_backporch:
+		HSYNC_PULSE_15KHZ 15, _rgb_15khz_240p_scanline_handler_pixeldata
+_rgb_15khz_240p_scanline_handler_pixeldata:
+		RGB_15KHZ_NOYIELD_PIXELDATA 240, _rgb_15khz_240p_scanline_handler_frontporch 
+
+;scan_rgb_15khz_288p_60hz:
+;_rgb_15khz_288p_scanline_handler_frontporch:
+;		HSYNC_PULSE_15KHZ 4, _rgb_15khz_288p_scanline_handler_vsync
+;_rgb_15khz_288p_scanline_handler_vsync:
+;		HSYNC_VSYNC_PULSE_15KHZ 1, _rgb_15khz_288p_scanline_handler_backporch_firstline
+;_rgb_15khz_288p_scanline_handler_backporch_firstline:
+;		HSYNC_PULSE_15KHZ_END_VSYNC 1, _rgb_15khz_288p_scanline_handler_backporch
+;_rgb_15khz_288p_scanline_handler_backporch:
+;		HSYNC_PULSE_15KHZ 15, _rgb_15khz_288p_scanline_handler_pixeldata
+;_rgb_15khz_288p_scanline_handler_pixeldata:
+;		RGB_15KHZ_NOYIELD_PIXELDATA 288, _rgb_15khz_288p_scanline_handler_frontporch 
+

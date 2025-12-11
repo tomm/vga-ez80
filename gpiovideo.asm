@@ -47,7 +47,7 @@ PRT_START: .equ 0b10
 MODE_FLAG_SLOW: .equ 1
 MODE_FLAG_15KHZ: .equ 2
 MODE_FLAG_31KHZ: .equ 4
-MODE_FLAG_30HZ: .equ 8
+MODE_FLAG_50HZ: .equ 8
 MODE_FLAG_60HZ: .equ 16
 
 modestruct_len: .equ 16
@@ -78,17 +78,21 @@ _modes:
 		.dl scan_vga_31khz_480p_60hz, 147, 156, 480, 1
 		.db MODE_FLAG_SLOW | MODE_FLAG_31KHZ | MODE_FLAG_60HZ
 
-		.dl scan_rgb_15khz_480p_30hz_grille, 294, 320, 120, 2
-		.db MODE_FLAG_15KHZ | MODE_FLAG_30HZ
-
-		.dl scan_rgb_15khz_480p_30hz_grille, 294, 320, 240, 1
-		.db MODE_FLAG_15KHZ | MODE_FLAG_30HZ
+		.dl scan_rgb_15khz_240p_60hz_grille, 294, 320, 120, 1
+		.db MODE_FLAG_15KHZ | MODE_FLAG_60HZ
 
 		.dl scan_rgb_15khz_240p_60hz, 294, 320, 120, 2
 		.db MODE_FLAG_15KHZ | MODE_FLAG_SLOW | MODE_FLAG_60HZ
 
 		.dl scan_rgb_15khz_240p_60hz, 294, 320, 240, 1
 		.db MODE_FLAG_15KHZ | MODE_FLAG_SLOW | MODE_FLAG_60HZ
+
+		.dl scan_rgb_15khz_288p_60hz_grille, 294, 320, 144, 1
+		.db MODE_FLAG_15KHZ | MODE_FLAG_50HZ
+
+		; no space yet for this
+		;.dl scan_rgb_15khz_288p_60hz, 294, 320, 288, 1
+		;.db MODE_FLAG_15KHZ | MODE_FLAG_SLOW | MODE_FLAG_50HZ
 _modes_end:
 num_modes: .equ [_modes_end-_modes]/modestruct_len
 
@@ -113,7 +117,7 @@ uart0_rx_buf:	.ds 32
 
 mos_sysvar_time: .ds 3
 
-saved_uart0_reg_ier:	.ds 1
+saved_uart0_reg_ier:	.db 0
 
 ret_callback:	ret
 
@@ -135,9 +139,15 @@ video_init:
 		ld (mos_sysvar_time),ix
 		pop ix
 
-		; turn off uart0 interrupt. we have to poll for uart0 rx
+		; If first init, save original uart0 ier value
+		ld a,(saved_uart0_reg_ier)
+		or a
+		jr nz,@nosave
 		in0 a,(UART0_REG_IER)
 		ld (saved_uart0_reg_ier),a
+	@nosave:
+		; turn off uart0 interrupt. we have to poll for uart0 rx
+		in0 a,(UART0_REG_IER)
 		xor a
 		out0 (UART0_REG_IER),a
 		

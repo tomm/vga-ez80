@@ -11,7 +11,7 @@ USE_CUSTOM_KEYBOARD_BUFFER: .equ 1
 		include "gpiovideo.asm"
 		include "lib/print.asm"
 
-MODE:	.equ	0
+MODE:	.equ	8
 FB_BASE: .equ 0x50000
 
 ; GPIO usage:
@@ -54,8 +54,8 @@ start:
 
 		; (hl) is frame_counter
 		ld bc,0
-		ld de,FB_BASE
 		ld iy,video_setup
+		ld hl,0	; angle
 	@mainloop:
 		; wait for next frame
 		xor a
@@ -64,22 +64,33 @@ start:
 		ld a,(iy+0)
 		or a
 		jr z,@b
-		
-		; 'hardware' scroll the framebuffer
-		ld hl,0
-		inc c
-		ld a,c
-		call sin
-		ld h,a
 
-		ld a,c
-		add a,64
-		call sin
-		ld l,a
-		add hl,hl
-		add hl,de
-		
-		ld (iy+1),hl
+		inc hl
+		push hl
+			; 'hardware' scroll the framebuffer
+			call sin
+			ld hl,0
+			add a,127
+			ld h,a
+			add hl,hl	; because 512 wide framebuffer
+			push hl
+			pop de
+
+			pop hl
+			push hl
+
+			inc h		; move angle to next quadrant for x coord
+			call sin
+			add a,127
+			ld e,a
+
+			push de
+			pop hl
+			ld de,FB_BASE
+			add hl,de
+			
+			ld (iy+1),hl
+		pop hl
 		jp @mainloop
 
 		call video_stop
