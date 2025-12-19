@@ -308,12 +308,13 @@ vga_scanline_grille_handler_pixeldata:
 		add hl,bc		; 1 cycle
 		ld de,PC_DR		; 4 cycles
 		ld bc,156		; 4 cycles
+		nop			; move this nop from after otirx to before
+		                        ; to avoid slight image clipping at lefthand side
 
 		; 5 cycles of h.back porch
 		otirx			; 2 + 3 (+ 3*155 accounted for in next section)
 		; 470 cycles: visible area (3*155=465 from otirx)
 		out (PC_DR),a		; 3 cycles clear pixel data
-		nop
 		nop
 
 		; now in non-scanned line of grille
@@ -416,11 +417,12 @@ vga_scanline_handler_pixeldata:
 		ld bc,156		; 4 cycles
 	; 480 lines
 	@loop:
+		nop			; move this nop from after otirx to before
+		                        ; to avoid slight image clipping at lefthand side
 		; 5 cycles of h.back porch
 		otirx			; 2 + 3 (+ 3*155 accounted for in next section)
 		; 470 cycles: visible area (3*155=465 from otirx)
 		out (PC_DR),a		; 3 cycles clear pixel data
-		nop
 		nop
 		; 12 cycles front porch (10 eaten by HSYNC_ONLY setup)
 		REP_NOP 2
