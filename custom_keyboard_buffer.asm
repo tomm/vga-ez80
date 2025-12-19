@@ -148,7 +148,33 @@ vdp_protocol_KEY:
 			; Store event in keyboard event buffer
 			LD	DE, _vdp_protocol_data
 			call kbuf_append
+			call test_ctrl_alt_del
 			RET
+
+test_ctrl_alt_del:
+			; Check for ctrl-alt-del
+			LD	DE, _vdp_protocol_data
+			INC	DE  ; kmod
+			LD	A,(DE)
+			AND	5		; CTRL+ALT down
+			CP	5
+			RET	NZ
+			INC	DE  ; vkey
+			LD	A,(DE)
+			CP	130		; DEL (cursor key)
+			JR	Z,@f
+			CP	131		; DEL (no numlock)
+			JR	Z,@f
+			CP	88		; DEL (numlock)
+			JR	Z,@f
+			RET
+		@@:
+			INC	DE  ; isdown
+			LD	A,(DE)
+			CP	1
+			RET	NZ  ; ignore key up
+			; OK. ctrl-alt-del pressed. Do reset
+			JP	0
 
 vdp_protocol_CURSOR:	RET
 vpd_protocol_SCRCHAR:	RET
