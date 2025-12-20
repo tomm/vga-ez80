@@ -61,7 +61,7 @@ start:
 		ld (iy+0),a
 	@@:
 		ld a,(iy+0)
-		cp 8
+		cp 4
 		jr c,@b
 		
 		jp @mainloop
@@ -72,22 +72,25 @@ start:
 		ld hl,0
 		ret
 
-angle:		db 0
+angle:		dl 0
 
 wibble_wobble:
 		push iy
-		out (0x10),a
 		ld b,80
 		ld iy,scanline_offsets+[3*158]
 		ld hl,scanline_offsets+[3*160]
-		ld a,(angle)
+		ld ix,(angle)
 	@loop:
 		ld de,(iy+0)
-		inc a
+		inc ix
 		push af
 		push bc
+			push hl
+			push ix
+			pop hl
 			call sin
-			srl a
+			pop hl
+			add 127
 			srl a
 			ld c,a
 			ld a,80
@@ -113,7 +116,7 @@ wibble_wobble:
 		inc hl
 		djnz @loop
 
-		ld (angle),a
+		ld (angle),ix
 
 		pop iy
 		ret
