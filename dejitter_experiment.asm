@@ -8,6 +8,9 @@
 		.db 0 ; version
 		.db 1 ; ADL
 
+; x4 clock cycles
+TIMER_PERIOD: .equ 147 ; 147 for 31khz, 294 for 15khz ints
+
 PB_DR: .equ 0x9a
 PB_DDR: .equ 0x9b
 PB_ALT1: .equ 0x9c
@@ -120,19 +123,19 @@ macro DEJITTER
 	; TMR1_DR_L into bc. XXX we assume bc container TMR1_CTL
 	inc bc		; 1 cycle
 	in a,(bc)	; 3
-	in d,(bc)	; 3
-	in e,(bc)	; 3
 	in h,(bc)	; 3
+	in l,(bc)	; 3
+	in b,(bc)	; 3
 
 	; sum it (3 cycles)
-	add a,d
-	add a,e
 	add a,h
+	add a,l
+	add a,b
 
 	; convert to number of cycles lagged (by the instruction executing when interrupt was due)
 	ld b,a
-	ld a,0x25	; 0x17 determined by experiment. will be invalidated if any code on interrupt entry are changed
-			; (eg replacing pushes with exx)
+	ld a,0x1e	; determined by experiment. will be invalidated if any code on interrupt entry are changed
+			; (ie all code up to the last 'in' instruction above)
 	sub b
 	; now cycles lagged is in `a`
 	; negate it by a computed jump into nops
@@ -167,12 +170,14 @@ macro DEJITTER
 endmacro
 
 timer_int_handler:
-		ex af,af'
-		exx
+		push af
+		push bc
+		push hl
 		ld bc,TMR1_CTL
 		in a,(bc) ; ACK
 		DEJITTER
 
+		push de
 		; save test result
 		ld hl,test_buffer
 		ld de,(test_position)
@@ -182,8 +187,10 @@ timer_int_handler:
 		inc de	
 		ld (test_position),de
 
-		exx
-		ex af,af'
+		pop de
+		pop hl
+		pop bc
+		pop af
 		ei
 		reti.lil
 
@@ -192,7 +199,7 @@ set_timer:
 		ld bc,timer_int_handler
 		ld (hl),bc
 		; set up timer1
-		ld hl,147 	; 147x4 clock cycle period = 588 cycles
+		ld hl,TIMER_PERIOD
 		out0 (TMR1_DR_L),l
 		out0 (TMR1_DR_H),h
 		ld a, [PRT_ENABLE | PRT_CLK_DIV_4 | PRT_START | PRT_INT_ENABLE | PRT_MODE_CONTINUOUS]
