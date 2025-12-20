@@ -37,64 +37,6 @@ macro HSYNC_ONLY
 		out0 (PD_DR),a 	; 4 cycles
 endmacro
 
-macro DEJITTER_31KHZ_PRT
-	; sample interrupt timing jitter from PRT register (16 cycles)
-	; can read every 3 cycles, while PRT decrements every 4.
-	; TMR1_DR_L into bc. XXX we assume bc container TMR1_CTL
-	inc bc		; 1 cycle
-	in a,(bc)	; 3
-	in d,(bc)	; 3
-	in e,(bc)	; 3
-	in h,(bc)	; 3
-
-	; sum it (3 cycles)
-	add a,d
-	add a,e
-	add a,h
-
-	; convert to number of cycles lagged (by the instruction executing when interrupt was due)
-	ld b,a
-	ld a,0x29	; 0x29 determined by experiment. will be invalidated if any code on interrupt entry are changed
-			; (or PRT counter reset value changed)
-	sub b
-	; now cycles lagged (+4) is in `a`
-	; Why +4? we want 16 nops to ensure unexpected values don't
-	; jump us somewhere weird (see `and 0xf`), but don't want to
-	; execute any more nops than needed. expected lag cycles
-	; should be 0-9, so +4 takes us further towards the end
-	; of the nop region wasting fewer cycles. why not +5? +6?
-	; yeah maybe could be
-
-	; Negate lag by computed jump into nops
-	; (8 cycles for self-modify & jr)
-	and 0xf
-	ld (@cmpjmp+1),a	; overwrite target of next instruction (jr)
-@cmpjmp:
-	jr $+2	; dummy jump target, as it will be overwritten
-	nop
-	nop
-	nop
-	nop
-
-	nop
-	nop
-	nop
-	nop
-
-	nop
-; isn't longest instruction 9 cycles (??), so don't need the rest of nops...
-; but that isn't considering wait states...
-; but this code isn't designed to work with wait states...
-	nop
-	nop
-	nop
-
-	nop
-	nop
-	nop
-	nop
-endmacro
-
 macro HSYNC_PULSE_ONLY_WITH_SCANLINE_INCREMENT endcount
 		; 10 cycles pre-assertion (properly belonging to front porch)
 		in0 a,(PD_DR)	; 4 cycles
@@ -106,7 +48,7 @@ macro HSYNC_PULSE_ONLY_WITH_SCANLINE_INCREMENT endcount
 		pop af		; 4 cyc
 
 		or 0b10000000		; 2 cycles (hsync off)
-		ld e,a			; 1 cycles
+		ld l,a			; 1 cycles
 
 		ld a,(_section_line_number)	; 5 cycles
 		inc a				; 1
@@ -114,12 +56,13 @@ macro HSYNC_PULSE_ONLY_WITH_SCANLINE_INCREMENT endcount
 		ld (_section_line_number),a	; 5 cycles
 
 		REP_NOP 11
-		out0 (PD_DR),e 	; 4 cycles
+		out0 (PD_DR),l 	; 4 cycles
 endmacro
 
 macro HSYNC_VSYNC_PULSE_31KHZ endcount, next_handler
-		ex af,af'
-		exx
+		push af
+		push bc
+		push hl
 		ld bc,TMR1_CTL
 		in a,(bc)	; ACK
 		DEJITTER_31KHZ_PRT
@@ -129,14 +72,15 @@ macro HSYNC_VSYNC_PULSE_31KHZ endcount, next_handler
 
 	; 35 cycles back porch -- assert vsync at end of this (start of visible section)
 		REP_NOP 29
-		res 6,e		; 2 cycles
-		out0 (PD_DR),e	; 4 cycles
+		res 6,l		; 2 cycles
+		out0 (PD_DR),l	; 4 cycles
 
 	; Then GTFO (in some visible image time)
 		cp endcount
 		jr z,@end_section
-		exx
-		ex af,af'
+		pop hl
+		pop bc
+		pop af
 		ei
 		reti.lil
 
@@ -146,15 +90,17 @@ macro HSYNC_VSYNC_PULSE_31KHZ endcount, next_handler
 		ld bc,next_handler
 		ld hl,(_timer1_int_vector)
 		ld (hl),bc
-		exx
-		ex af,af'
+		pop hl
+		pop bc
+		pop af
 		ei
 		reti.lil
 endmacro
 
 macro HSYNC_PULSE_31KHZ_END_VSYNC endcount, next_handler
-		ex af,af'
-		exx
+		push af
+		push bc
+		push hl
 		ld bc,TMR1_CTL
 		in a,(bc)	; ACK
 		DEJITTER_31KHZ_PRT
@@ -164,8 +110,8 @@ macro HSYNC_PULSE_31KHZ_END_VSYNC endcount, next_handler
 
 	; 35 cycles back porch -- de-assert vsync at end of this (start of visible section)
 		REP_NOP 29
-		set 6,e		; 2 cycles
-		out0 (PD_DR),e	; 4 cycles
+		set 6,l		; 2 cycles
+		out0 (PD_DR),l	; 4 cycles
 
 	; Then GTFO (in some visible area time)
 		xor a
@@ -174,12 +120,7 @@ macro HSYNC_PULSE_31KHZ_END_VSYNC endcount, next_handler
 		ld hl,(_timer1_int_vector)
 		ld (hl),bc
 
-		exx
-		ex af,af'
-		push af
-		push bc
 		push de
-		push hl
 		ei
 
 		; XXX not right place. should be 1 scanline before image
@@ -223,8 +164,8 @@ macro HSYNC_PULSE_31KHZ_END_VSYNC endcount, next_handler
 		inc hl
 		jr @loop
 	@end:
-		pop hl
 		pop de
+		pop hl
 		pop bc
 		pop af
 
@@ -232,8 +173,9 @@ macro HSYNC_PULSE_31KHZ_END_VSYNC endcount, next_handler
 endmacro
 
 macro HSYNC_PULSE_31KHZ endcount, next_handler
-		ex af,af'
-		exx
+		push af
+		push bc
+		push hl
 		ld bc,TMR1_CTL
 		in a,(bc)	; ACK
 		DEJITTER_31KHZ_PRT
@@ -243,8 +185,9 @@ macro HSYNC_PULSE_31KHZ endcount, next_handler
 
 	; Then GTFO
 		jr z,@end_section
-		exx
-		ex af,af'
+		pop hl
+		pop bc
+		pop af
 		ei
 		reti.lil
 
@@ -254,8 +197,9 @@ macro HSYNC_PULSE_31KHZ endcount, next_handler
 		ld bc,next_handler
 		ld hl,(_timer1_int_vector)
 		ld (hl),bc
-		exx
-		ex af,af'
+		pop hl
+		pop bc
+		pop af
 		ei
 		reti.lil
 endmacro
@@ -271,8 +215,9 @@ vga_scanline_grille_handler_backporch_firstline:
 vga_scanline_grille_handler_backporch:
 		HSYNC_PULSE_31KHZ 32, vga_scanline_grille_handler_pixeldata
 vga_scanline_grille_handler_pixeldata:
-		ex af,af'
-		exx
+		push af
+		push bc
+		push hl
 		ld bc,TMR1_CTL
 		in a,(bc)	; ACK
 		DEJITTER_31KHZ_PRT
@@ -284,6 +229,7 @@ vga_scanline_grille_handler_pixeldata:
 		res 7,a		; 2 cycles
 		out0 (PD_DR),a	; 4 cycles
 		; 71 cycles asserted
+		push de
 		push af		; 4 cyc
 		UART0_RX_POLL_32_CYC
 		ld a,(_section_line_number)	; 5 cycles
@@ -294,7 +240,7 @@ vga_scanline_grille_handler_pixeldata:
 		add hl,bc			; 1 cycles
 		add hl,bc			; 1 cycles
 		add hl,bc			; 1 cycles
-		REP_NOP 5
+		REP_NOP 1
 		pop af		; 4 cyc
 		or 0b10000000		; 2 cycles (hsync off)
 		out0 (PD_DR),a 	; 4 cycles
@@ -340,11 +286,13 @@ vga_scanline_grille_handler_pixeldata:
 		cp 240			; 2
 		ld (_section_line_number),a	; 5 cycles
 		jr z,@end_section	; 2 not taken, 4 taken
-		REP_NOP 4
-		ex af,af'		; 1
+		REP_NOP 5
 		; de-assert hsync
 		out0 (PD_DR),e 	; 4 cycles
-		exx			; 1
+		pop de
+		pop hl
+		pop bc
+		pop af
 		ei
 		reti.lil
 
@@ -361,8 +309,10 @@ vga_scanline_grille_handler_pixeldata:
 		ld bc,vga_scanline_grille_handler_frontporch
 		ld hl,(_timer1_int_vector)
 		ld (hl),bc
-		exx
-		ex af,af'
+		pop de
+		pop hl
+		pop bc
+		pop af
 		ei
 		reti.lil
 
@@ -378,8 +328,9 @@ vga_scanline_handler_backporch_firstline:
 vga_scanline_handler_backporch:
 		HSYNC_PULSE_31KHZ 32, vga_scanline_handler_pixeldata
 vga_scanline_handler_pixeldata:
-		ex af,af'
-		exx
+		push af
+		push bc
+		push hl
 		ld bc,TMR1_CTL
 		in a,(bc)	; ACK
 		DEJITTER_31KHZ_PRT
@@ -406,7 +357,7 @@ vga_scanline_handler_pixeldata:
 		out0 (PD_DR),a 	; 4 cycles
 
 		; 35 cycles h.back porch (5 unused for start of loop)
-		REP_NOP 4
+		push de
 		; update the framebuffer pointer (26 cycles)
 		xor a			; 1 cycle
 		ld hl,(fb_ptr)		; 7 cycles
@@ -458,6 +409,7 @@ vga_scanline_handler_pixeldata:
 
 		; now in first line of vertical front-porch. Have already provided hsync
 		; so now we clean up and reti
+		pop de
 		pop iy				; 5 cycles
 		pop ix				; 5 cycles
 
@@ -473,7 +425,8 @@ vga_scanline_handler_pixeldata:
 		ld bc,vga_scanline_handler_frontporch ; 4 cycles
 		ld hl,(_timer1_int_vector)	; 7 cycles
 		ld (hl),bc			; 5 cycles
-		exx
-		ex af,af'
+		pop hl
+		pop bc
+		pop af
 		ei
 		reti.lil
