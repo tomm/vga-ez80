@@ -126,6 +126,13 @@ video_stop:
 		; Re-enable uart0 interrupt(s)
 		ld a,(saved_uart0_reg_ier)
 		out0 (UART0_REG_IER),a
+		; Enable vblank interrupt
+		in0 a,(PB_ALT2)
+		set 1,a
+		out0 (PB_ALT2),a
+		in0 a,(PB_ALT1)
+		set 1,a
+		out0 (PB_ALT1),a
 		ret
 
 video_init:
@@ -148,9 +155,6 @@ video_init:
 		in0 a,(PB_ALT1)
 		res 1,a
 		out0 (PB_ALT1),a
-		in0 a,(PB_DDR)
-		set 1,a
-		out0 (PB_DDR),a
 
 		; set port c for output
 		xor a
