@@ -102,7 +102,7 @@ video_setup:
 	frame_counter:	.db 0
 	fb_ptr:		.dl	0xb1000 ; [width*height] only 4k left for moslets...
 	fb_scanline_offsets: .dl     0xba240 ; [480*3] enough space for 156*240 mode
-	pre_image_callback: .dl ret_callback	; called one line before image scanout begins. last chance to swap buffers etc
+	pre_image_callback: .dl reti_callback	; called one line before image scanout begins. last chance to swap buffers etc
 	; pre_image_callback must preserve ix,iy. can stomp the rest. no shadow regs.
 
 _current_mode:	.dl 0		; ptr into _modes
@@ -115,11 +115,9 @@ _section_line_number:
 uart0_buf_pos:	.ds 3		; ptr into uart0_rx_buf
 uart0_rx_buf:	.ds 32
 
-mos_sysvar_time: .ds 3
-
 saved_uart0_reg_ier:	.db 0
 
-ret_callback:	ret
+reti_callback:	reti.lil
 
 video_stop:
 		; Turn off GPIO video scanout
@@ -131,14 +129,6 @@ video_stop:
 		ret
 
 video_init:
-		; Get pointer to mos sysvar_time, since we will be incrementing
-		; that by two per frame (for a little backwards compatibility)
-		push ix
-		ld a,8  ; moscall mos_sysvars
-		rst.lil 8
-		ld (mos_sysvar_time),ix
-		pop ix
-
 		; If first init, save original uart0 ier value
 		ld a,(saved_uart0_reg_ier)
 		or a

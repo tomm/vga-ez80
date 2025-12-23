@@ -1,13 +1,5 @@
 	.assume adl=1
 
-macro INCREMENT_MOS_SYSVAR_TIME
-		ld hl,(mos_sysvar_time)
-		ld de,(hl)
-		inc de
-		inc de
-		ld (hl),de
-endmacro
-
 ; fudge_factors determined experimentally (with dejitter_experiment.asm)
 macro DEJITTER_PRT fudge_factor
 	; sample interrupt timing jitter from PRT register (16 cycles)

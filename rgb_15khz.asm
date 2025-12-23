@@ -124,14 +124,6 @@ macro HSYNC_PULSE_15KHZ_END_VSYNC endcount, next_handler
 		push de
 		ei
 
-		; XXX not right place. should be 1 scanline before image
-		ld hl,@callback_ret
-		push hl
-		ld hl,(pre_image_callback)
-		jp (hl)
-	@callback_ret:
-		INCREMENT_MOS_SYSVAR_TIME
-
 		; process contents of uart0_rx_buf
 		ld hl,uart0_rx_buf
 		ld de,(uart0_buf_pos)
@@ -170,7 +162,11 @@ macro HSYNC_PULSE_15KHZ_END_VSYNC endcount, next_handler
 		pop bc
 		pop af
 
-		reti.lil
+		; call pre_image_callback
+		push hl
+		ld hl,(pre_image_callback)
+		ex (sp),hl
+		ret		; pre_image_callback will reti.lil
 endmacro
 
 macro HSYNC_PULSE_15KHZ endcount, next_handler
