@@ -115,16 +115,15 @@ _section_line_number:
 uart0_buf_pos:	.ds 3		; ptr into uart0_rx_buf
 uart0_rx_buf:	.ds 32
 
-saved_uart0_reg_ier:	.db 0
-
 reti_callback:	reti.lil
 
 video_stop:
 		; Turn off GPIO video scanout
 		xor a
 		out0 (TMR1_CTL),a
-		; Re-enable uart0 interrupt(s)
-		ld a,(saved_uart0_reg_ier)
+		; Re-enable uart0 rx interrupt
+		ld a,(UART0_REG_IER)
+		set 0,a
 		out0 (UART0_REG_IER),a
 		; Enable vblank interrupt
 		in0 a,(PB_ALT2)
@@ -136,16 +135,9 @@ video_stop:
 		ret
 
 video_init:
-		; If first init, save original uart0 ier value
-		ld a,(saved_uart0_reg_ier)
-		or a
-		jr nz,@nosave
+		; turn off uart0 rx interrupt. we have to poll for uart0 rx
 		in0 a,(UART0_REG_IER)
-		ld (saved_uart0_reg_ier),a
-	@nosave:
-		; turn off uart0 interrupt. we have to poll for uart0 rx
-		in0 a,(UART0_REG_IER)
-		xor a
+		res 0,a
 		out0 (UART0_REG_IER),a
 		
 		; turn off vblank interupt
