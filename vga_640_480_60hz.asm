@@ -22,40 +22,27 @@
 ;            2 lines vsync pulse
 ;           33 lines back porch
 
-macro HSYNC_ONLY
-	; 71 cycles (-ve sync pulse)
-		; 10 cycles pre-assertion (properly belonging to front porch)
-		in0 a,(PD_DR)	; 4 cycles
-		res 7,a		; 2 cycles
-		out0 (PD_DR),a	; 4 cycles
-		; 71 cycles asserted
-		push af		; 4 cyc
-		UART0_RX_POLL_32_CYC
-		pop af		; 4 cyc
-		REP_NOP 25
-		or 0b10000000		; 2 cycles (hsync off)
-		out0 (PD_DR),a 	; 4 cycles
-endmacro
-
 macro HSYNC_PULSE_ONLY_WITH_SCANLINE_INCREMENT endcount
 		; 10 cycles pre-assertion (properly belonging to front porch)
-		in0 a,(PD_DR)	; 4 cycles
-		res 7,a		; 2 cycles
-		out0 (PD_DR),a	; 4 cycles
+		in0 b,(PD_DR)	; 4 cycles
+		res 7,b		; 2 cycles
+		out0 (PD_DR),b	; 4 cycles
 		; 71 cycles asserted
-		push af		; 4 cyc
-		UART0_RX_POLL_32_CYC
-		pop af		; 4 cyc
+		push de
+		UART0_RX_POLL_OR_AUDIO_39_CYC
+		pop de
 
+		; 3 cycles compute de-assert hsync
 		or 0b10000000		; 2 cycles (hsync off)
 		ld l,a			; 1 cycles
 
+		; 13 cycles increment _section_line_number
 		ld a,(_section_line_number)	; 5 cycles
 		inc a				; 1
 		cp endcount			; 2
 		ld (_section_line_number),a	; 5 cycles
 
-		REP_NOP 11
+		REP_NOP 4
 		out0 (PD_DR),l 	; 4 cycles
 endmacro
 
@@ -221,13 +208,13 @@ vga_scanline_grille_handler_pixeldata:
 	; Setup visible line
 		; 71 cycles hsync
 		; 10 cycles pre-assertion (properly belonging to front porch)
-		in0 a,(PD_DR)	; 4 cycles
-		res 7,a		; 2 cycles
-		out0 (PD_DR),a	; 4 cycles
+		in0 b,(PD_DR)	; 4 cycles
+		res 7,b		; 2 cycles
+		out0 (PD_DR),b	; 4 cycles
 		; 71 cycles asserted
 		push de
-		push af		; 4 cyc
-		UART0_RX_POLL_32_CYC
+		UART0_RX_POLL_OR_AUDIO_39_CYC
+		ld e,a
 		ld a,(_section_line_number)	; 5 cycles
 		ld bc,0				; 4 cycles
 		ld c,a				; 1 cyc
@@ -236,23 +223,19 @@ vga_scanline_grille_handler_pixeldata:
 		add hl,bc			; 1 cycles
 		add hl,bc			; 1 cycles
 		add hl,bc			; 1 cycles
-		REP_NOP 1
-		pop af		; 4 cyc
+		ld a,e
 		or 0b10000000		; 2 cycles (hsync off)
 		out0 (PD_DR),a 	; 4 cycles
 
 	; 35 cycles h.back porch (5 unused for start of loop)
-		REP_NOP 8
+		REP_NOP 9
 		; update the framebuffer pointer (26 cycles)
-		xor a			; 1 cycle
 		ld bc,(hl)		; 5 cycles
 		ld hl,(fb_ptr)		; 7 cycles
 		add hl,bc		; 1 cycle
 		ld de,PC_DR		; 4 cycles
 		ld bc,156		; 4 cycles
-		nop			; move this nop from after otirx to before
-		                        ; to avoid slight image clipping at lefthand side
-
+		xor a
 		; 5 cycles of h.back porch
 		otirx			; 2 + 3 (+ 3*155 accounted for in next section)
 		; 470 cycles: visible area (3*155=465 from otirx)
@@ -264,14 +247,11 @@ vga_scanline_grille_handler_pixeldata:
 		REP_NOP 2
 	; 71 cycles hsync
 		; 10 cycles pre-assertion (properly belonging to front porch)
-		in0 a,(PD_DR)	; 4 cycles
-		res 7,a		; 2 cycles
-		out0 (PD_DR),a	; 4 cycles
+		in0 b,(PD_DR)	; 4 cycles
+		res 7,b		; 2 cycles
+		out0 (PD_DR),b	; 4 cycles
 		; 71 cycles asserted
-		push af		; 4 cyc
-		UART0_RX_POLL_32_CYC
-		pop af		; 4 cyc
-
+		UART0_RX_POLL_OR_AUDIO_39_CYC
 		or 0b10000000		; 2 cycles (hsync off)
 		ld e,a			; 1 cycles
 		; ack timer interrupt since we have overrun
@@ -282,7 +262,7 @@ vga_scanline_grille_handler_pixeldata:
 		cp 240			; 2
 		ld (_section_line_number),a	; 5 cycles
 		jr z,@end_section	; 2 not taken, 4 taken
-		REP_NOP 5
+		REP_NOP 6
 		; de-assert hsync
 		out0 (PD_DR),e 	; 4 cycles
 		pop de
@@ -334,28 +314,23 @@ vga_scanline_handler_pixeldata:
 	; Setup first line of visible area
 		; 71 cycles hsync
 		; 10 cycles pre-assertion (properly belonging to front porch)
-		in0 a,(PD_DR)	; 4 cycles
-		res 7,a		; 2 cycles
-		out0 (PD_DR),a	; 4 cycles
+		in0 b,(PD_DR)	; 4 cycles
+		res 7,b		; 2 cycles
+		out0 (PD_DR),b	; 4 cycles
 		; 71 cycles asserted
-		push af		; 4 cyc
-		UART0_RX_POLL_32_CYC
-		pop af		; 4 cyc
-
+		push de
+		UART0_RX_POLL_OR_AUDIO_39_CYC
 		push ix			; 5 cycles
 		push iy			; 5 cycles
 		; loop counter in ix
-		ld ix,480		; 5 cycles
 		ld iy,(fb_scanline_offsets)	; 8 cycles
-		REP_NOP 2
-
+		REP_NOP 4
 		or 0b10000000		; 2 cycles (hsync off)
 		out0 (PD_DR),a 	; 4 cycles
 
 		; 35 cycles h.back porch (5 unused for start of loop)
-		push de
 		; update the framebuffer pointer (26 cycles)
-		xor a			; 1 cycle
+		ld ix,480		; 5 cycles
 		ld hl,(fb_ptr)		; 7 cycles
 		ld bc,(iy+0)		; 6 cycles
 		add hl,bc		; 1 cycle
@@ -364,8 +339,7 @@ vga_scanline_handler_pixeldata:
 		ld bc,156		; 4 cycles
 	; 480 lines
 	@loop:
-		nop			; move this nop from after otirx to before
-		                        ; to avoid slight image clipping at lefthand side
+		xor a			; 1 cycle
 		; 5 cycles of h.back porch
 		otirx			; 2 + 3 (+ 3*155 accounted for in next section)
 		; 470 cycles: visible area (3*155=465 from otirx)
@@ -373,14 +347,11 @@ vga_scanline_handler_pixeldata:
 		nop
 		; 12 cycles front porch (10 eaten by HSYNC_ONLY setup)
 		REP_NOP 2
-		in0 a,(PD_DR)	; 4 cycles
-		res 7,a		; 2 cycles
-		out0 (PD_DR),a	; 4 cycles
+		in0 b,(PD_DR)	; 4 cycles
+		res 7,b		; 2 cycles
+		out0 (PD_DR),b	; 4 cycles
 		; 71 cycles hsync
-		push af		; 4 cyc
-		UART0_RX_POLL_32_CYC
-		pop af		; 4 cyc
-
+		UART0_RX_POLL_OR_AUDIO_39_CYC
 		; update the framebuffer pointer (25 cycles)
 		ld hl,(fb_ptr)		; 7 cycles
 		ld bc,(iy+0)		; 6 cycles
@@ -388,6 +359,7 @@ vga_scanline_handler_pixeldata:
 		lea iy,iy+3		; 3 cycles
 		ld de,PC_DR		; 4 cycles
 		ld bc,156		; 4 cycles
+		REP_NOP 1
 
 		or 0b10000000		; 2 cycles (hsync off)
 		out0 (PD_DR),a 	; 4 cycles
@@ -405,9 +377,9 @@ vga_scanline_handler_pixeldata:
 
 		; now in first line of vertical front-porch. Have already provided hsync
 		; so now we clean up and reti
-		pop de
 		pop iy				; 5 cycles
 		pop ix				; 5 cycles
+		pop de
 
 		; ack timer interrupt since we have overrun
 		in0 a,(TMR1_CTL)

@@ -31,7 +31,7 @@ start:
 		cp 23
 		jr z,@cannot_set_resetvector
 
-		print_asciz "Loaded GPIO video driver v1 at $"
+		print_asciz "Loaded GPIO video driver v2 at $"
 		ld hl,TSR_LOC
 		call print_hex24
 		print_c '-'
@@ -74,7 +74,7 @@ rst20_api_handler:
 ; Return version in `a` (will be non-zero)
 api_getversion:
 		pop hl
-		ld a,1
+		ld a,2
 		ret.lil
 
 ; Input: a=1, mode number in `l`.
@@ -94,6 +94,7 @@ api_setmode:
 ;                                    an offset applied to fb_ptr to find the
 ;                                    pixel data of a given scanline */
 ;   uint24_t pre_image_callback; /* fn pointer, called shortly before image scanout */
+;   uint24_t audio_osc_inc; /* for 31khz modes, audio_osc_inc is (frequency * 1066) */
 ; }
 api_getvideosetup:
 		pop hl

@@ -104,6 +104,9 @@ video_setup:
 	fb_scanline_offsets: .dl     0xba240 ; [480*3] enough space for 156*240 mode
 	pre_image_callback: .dl reti_callback	; called one line before image scanout begins. last chance to swap buffers etc
 	; pre_image_callback must preserve ix,iy. can stomp the rest. no shadow regs.
+	audio_osc_inc:	.ds 3	; sets audio note frequency.
+				; for `f` Hz, audio_osc_inc = 2^25 * f / video_hfreq
+				; In 31khz video modes this boils down to audio_freq * 1066 
 
 _current_mode:	.dl 0		; ptr into _modes
 
@@ -114,6 +117,7 @@ _section_line_number:
 
 uart0_buf_pos:	.ds 3		; ptr into uart0_rx_buf
 uart0_rx_buf:	.ds 32
+audio_osc_pos:	.ds 3
 
 reti_callback:	reti.lil
 
@@ -155,17 +159,17 @@ video_init:
 		out0 (PC_ALT2),a
 		out0 (PC_DR),a
 
-		; set port d pin 6&7 to output
+		; set port d pin 5,6,7 (audio,vsync,hsync) to output
 		in0 a,(PD_DDR)
-		and 0b00111111
+		and 0b00011111
 		out0 (PD_DDR),a
 
 		in0 a,(PD_ALT1)
-		and 0b00111111
+		and 0b00011111
 		out0 (PD_ALT1),a
 
 		in0 a,(PD_ALT2)
-		and 0b00111111
+		and 0b00011111
 		out0 (PD_ALT2),a
 
 		; clear timer1 first before messing with interrupt handlers
@@ -233,6 +237,10 @@ video_set_mode:	; mode in `a`
 		ld (hl),bc
 		xor a
 		ld (_section_line_number),a
+
+		; clear audio oscillator increment
+		ld hl,0
+		ld (audio_osc_inc),hl
 
 		; set up timer1
 		ld hl,(iy+3)	; load _modes[1] value (scanline length in CPU clocks / 4)
