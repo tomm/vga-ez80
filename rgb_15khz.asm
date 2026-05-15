@@ -23,14 +23,14 @@
 macro HSYNC_ONLY_15KHZ
 	; 71 cycles (-ve sync pulse)
 		; 10 cycles pre-assertion (properly belonging to front porch)
-		in0 a,(PD_DR)	; 4 cycles
-		res 7,a		; 2 cycles
-		out0 (PD_DR),a	; 4 cycles
+		in0 b,(PD_DR)	; 4 cycles
+		res 7,b		; 2 cycles
+		out0 (PD_DR),b	; 4 cycles
 		; 71 cycles asserted
-		push af		; 4 cyc
-		UART0_RX_POLL_32_CYC
-		pop af		; 4 cyc
-		REP_NOP 25
+		push de
+		UART0_RX_POLL_OR_AUDIO_39_CYC
+		pop de
+		REP_NOP 18
 		REP_NOP 71
 		or 0b10000000		; 2 cycles (hsync off)
 		out0 (PD_DR),a 	; 4 cycles
@@ -38,14 +38,14 @@ endmacro
 
 macro HSYNC_PULSE_ONLY_WITH_SCANLINE_INCREMENT_15KHZ endcount
 		; 10 cycles pre-assertion (properly belonging to front porch)
-		in0 a,(PD_DR)	; 4 cycles
-		res 7,a		; 2 cycles
-		out0 (PD_DR),a	; 4 cycles
+		in0 b,(PD_DR)	; 4 cycles
+		res 7,b		; 2 cycles
+		out0 (PD_DR),b	; 4 cycles
 		; 71 cycles asserted
-		push af		; 4 cyc
-		UART0_RX_POLL_32_CYC
-		pop af		; 4 cyc
-		REP_NOP 11
+		push de
+		UART0_RX_POLL_OR_AUDIO_39_CYC
+		pop de
+		REP_NOP 4
 		REP_NOP 71
 		or 0b10000000		; 2 cycles (hsync off)
 		ld l,a			; 1 cycles
@@ -212,13 +212,14 @@ macro RGB_15KHZ_GRILLE_PIXELDATA numlines, frontporch_handler
 	; Setup visible line
 		; 71 cycles hsync
 		; 10 cycles pre-assertion (properly belonging to front porch)
-		in0 a,(PD_DR)	; 4 cycles
-		res 7,a		; 2 cycles
-		out0 (PD_DR),a	; 4 cycles
+		in0 b,(PD_DR)	; 4 cycles
+		res 7,b		; 2 cycles
+		out0 (PD_DR),b	; 4 cycles
 		; 71 cycles asserted
 		push de
-		push af		; 4 cyc
-		UART0_RX_POLL_32_CYC
+		UART0_RX_POLL_OR_AUDIO_39_CYC
+		push af
+
 		ld a,(_section_line_number)	; 5 cycles
 		ld bc,0				; 4 cycles
 		ld c,a				; 1 cyc
@@ -227,8 +228,7 @@ macro RGB_15KHZ_GRILLE_PIXELDATA numlines, frontporch_handler
 		add hl,bc			; 1 cycles
 		add hl,bc			; 1 cycles
 		add hl,bc			; 1 cycles
-		REP_NOP 1
-		REP_NOP 71
+		REP_NOP 65
 		pop af		; 4 cyc
 		or 0b10000000		; 2 cycles (hsync off)
 		out0 (PD_DR),a 	; 4 cycles
@@ -307,21 +307,20 @@ macro RGB_15KHZ_NOYIELD_PIXELDATA numlines, frontporch_handler
 	; Setup first line of visible area
 		; 71 cycles hsync
 		; 10 cycles pre-assertion (properly belonging to front porch)
-		in0 a,(PD_DR)	; 4 cycles
-		res 7,a		; 2 cycles
-		out0 (PD_DR),a	; 4 cycles
+		in0 b,(PD_DR)	; 4 cycles
+		res 7,b		; 2 cycles
+		out0 (PD_DR),b	; 4 cycles
 		; 71 cycles asserted
-		push af		; 4 cyc
-		UART0_RX_POLL_32_CYC
-		pop af		; 4 cyc
+		push de
+		UART0_RX_POLL_OR_AUDIO_39_CYC
+		pop de
 
 		push ix			; 5 cycles
 		push iy			; 5 cycles
 		; loop counter in ix
 		ld ix,numlines		; 5 cycles
 		ld iy,(fb_scanline_offsets)	; 8 cycles
-		REP_NOP 2
-		REP_NOP 71
+		REP_NOP 66
 
 		or 0b10000000		; 2 cycles (hsync off)
 		out0 (PD_DR),a 	; 4 cycles
@@ -349,15 +348,15 @@ macro RGB_15KHZ_NOYIELD_PIXELDATA numlines, frontporch_handler
 		nop
 		; 12 cycles front porch (10 eaten by HSYNC_ONLY_15KHZ setup)
 		REP_NOP 2
-		in0 a,(PD_DR)	; 4 cycles
-		res 7,a		; 2 cycles
-		out0 (PD_DR),a	; 4 cycles
+		in0 b,(PD_DR)	; 4 cycles
+		res 7,b		; 2 cycles
+		out0 (PD_DR),b	; 4 cycles
 		; 71 cycles hsync
-		push af		; 4 cyc
-		UART0_RX_POLL_32_CYC
-		pop af		; 4 cyc
+		push de
+		UART0_RX_POLL_OR_AUDIO_39_CYC
+		pop de
 
-		REP_NOP 71
+		REP_NOP 64
 		; update the framebuffer pointer (25 cycles)
 		ld hl,(fb_ptr)		; 7 cycles
 		ld bc,(iy+0)		; 6 cycles
