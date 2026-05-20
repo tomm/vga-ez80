@@ -218,25 +218,27 @@ vga_scanline_grille_handler_pixeldata:
 		ld a,(_section_line_number)	; 5 cycles
 		ld bc,0				; 4 cycles
 		ld c,a				; 1 cyc
+		REP_NOP 6
+		ld a,e
+		ld de,PC_DR		; 4 cycles
+		or 0b10000000		; 2 cycles (hsync off)
+		out0 (PD_DR),a 	; 4 cycles
+		
+	; 35 cycles h.back porch (5 unused for start of loop)
+		REP_NOP 3
 		; hl = &fb_scanline_offsets[_section_line_number]
 		ld hl,(fb_scanline_offsets)	; 7 cycles
 		add hl,bc			; 1 cycles
 		add hl,bc			; 1 cycles
 		add hl,bc			; 1 cycles
-		ld a,e
-		or 0b10000000		; 2 cycles (hsync off)
-		out0 (PD_DR),a 	; 4 cycles
-
-	; 35 cycles h.back porch (5 unused for start of loop)
-		REP_NOP 9
 		; update the framebuffer pointer (26 cycles)
 		ld bc,(hl)		; 5 cycles
 		ld hl,(fb_ptr)		; 7 cycles
 		add hl,bc		; 1 cycle
-		ld de,PC_DR		; 4 cycles
 		ld bc,156		; 4 cycles
-		xor a
+
 		; 5 cycles of h.back porch
+		xor a
 		otirx			; 2 + 3 (+ 3*155 accounted for in next section)
 		; 470 cycles: visible area (3*155=465 from otirx)
 		out (PC_DR),a		; 3 cycles clear pixel data
@@ -322,19 +324,17 @@ vga_scanline_handler_pixeldata:
 		UART0_RX_POLL_OR_AUDIO_39_CYC
 		push ix			; 5 cycles
 		push iy			; 5 cycles
-		; loop counter in ix
-		ld iy,(fb_scanline_offsets)	; 8 cycles
-		REP_NOP 4
+		ld ix,480		; 5 cycles. loop counter
+		REP_NOP 7
 		or 0b10000000		; 2 cycles (hsync off)
 		out0 (PD_DR),a 	; 4 cycles
 
 		; 35 cycles h.back porch (5 unused for start of loop)
 		; update the framebuffer pointer (26 cycles)
-		ld ix,480		; 5 cycles
+		ld iy,(fb_scanline_offsets)	; 8 cycles
 		ld hl,(fb_ptr)		; 7 cycles
 		ld bc,(iy+0)		; 6 cycles
 		add hl,bc		; 1 cycle
-		lea iy,iy+3		; 3 cycles
 		ld de,PC_DR		; 4 cycles
 		ld bc,156		; 4 cycles
 	; 480 lines
@@ -354,26 +354,23 @@ vga_scanline_handler_pixeldata:
 		UART0_RX_POLL_OR_AUDIO_39_CYC
 		; update the framebuffer pointer (25 cycles)
 		ld hl,(fb_ptr)		; 7 cycles
+		lea iy,iy+3		; 3 cycles
 		ld bc,(iy+0)		; 6 cycles
 		add hl,bc		; 1 cycle
-		lea iy,iy+3		; 3 cycles
-		ld de,PC_DR		; 4 cycles
-		ld bc,156		; 4 cycles
-		REP_NOP 1
+		REP_NOP 9
 
 		or 0b10000000		; 2 cycles (hsync off)
 		out0 (PD_DR),a 	; 4 cycles
 		; 35 cycles back porch (5 cycles unused to donate to start of loop)
-		REP_NOP 8
+		REP_NOP 10
 		; long-winded way of using ix as a 16-bit loop counter...
 		dec ix			; 2 cycles
-		push bc			; 4 cycles
-		lea bc,ix+0		; 3
-		ld a,b			; 1
-		or a,c			; 1
-		pop bc			; 4
-		ld a,0			; 2 cycles
-		jp nz,@loop		; 5 cycles when taken (4 not taken)
+		ld b,ixh		; 2 cycles
+		ld a,ixl		; 2 cycles
+		or b			; 1 cycles
+		ld bc,156		; 4 cycles
+		ld de,PC_DR		; 4 cycles
+		jp nz,@loop		; 5 cycles
 
 		; now in first line of vertical front-porch. Have already provided hsync
 		; so now we clean up and reti
