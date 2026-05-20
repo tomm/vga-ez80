@@ -103,10 +103,6 @@ video_setup:
 	fb_ptr:		.dl	0xb1000 ; [width*height] only 4k left for moslets...
 	fb_scanline_offsets: .dl     0xba240 ; [480*3] enough space for 156*240 mode
 	pre_image_callback: .dl reti_callback	; called one line before image scanout begins. last chance to swap buffers etc
-	; pre_image_callback must preserve ix,iy. can stomp the rest. no shadow regs.
-	audio_osc_inc:	.ds 3	; sets audio note frequency.
-				; for `f` Hz, audio_osc_inc = 2^25 * f / video_hfreq
-				; In 31khz video modes this boils down to audio_freq * 1066 
 
 _current_mode:	.dl 0		; ptr into _modes
 
@@ -117,7 +113,6 @@ _section_line_number:
 
 uart0_buf_pos:	.ds 3		; ptr into uart0_rx_buf
 uart0_rx_buf:	.ds 32
-audio_osc_pos:	.ds 3
 
 reti_callback:	reti.lil
 
@@ -237,10 +232,6 @@ video_set_mode:	; mode in `a`
 		ld (hl),bc
 		xor a
 		ld (_section_line_number),a
-
-		; clear audio oscillator increment
-		ld hl,0
-		ld (audio_osc_inc),hl
 
 		; set up timer1
 		ld hl,(iy+3)	; load _modes[1] value (scanline length in CPU clocks / 4)

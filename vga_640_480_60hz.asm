@@ -28,9 +28,7 @@ macro HSYNC_PULSE_ONLY_WITH_SCANLINE_INCREMENT endcount
 		res 7,b		; 2 cycles
 		out0 (PD_DR),b	; 4 cycles
 		; 71 cycles asserted
-		push de
-		UART0_RX_POLL_OR_AUDIO_39_CYC
-		pop de
+		UART0_RX_POLL_OR_AUDIO_44_CYC
 
 		; 3 cycles compute de-assert hsync
 		or 0b10000000		; 2 cycles (hsync off)
@@ -42,7 +40,7 @@ macro HSYNC_PULSE_ONLY_WITH_SCANLINE_INCREMENT endcount
 		cp endcount			; 2
 		ld (_section_line_number),a	; 5 cycles
 
-		REP_NOP 4
+		REP_NOP 7
 		out0 (PD_DR),l 	; 4 cycles
 endmacro
 
@@ -213,12 +211,12 @@ vga_scanline_grille_handler_pixeldata:
 		out0 (PD_DR),b	; 4 cycles
 		; 71 cycles asserted
 		push de
-		UART0_RX_POLL_OR_AUDIO_39_CYC
+		UART0_RX_POLL_OR_AUDIO_44_CYC
+		nop
 		ld e,a
 		ld a,(_section_line_number)	; 5 cycles
 		ld bc,0				; 4 cycles
 		ld c,a				; 1 cyc
-		REP_NOP 6
 		ld a,e
 		ld de,PC_DR		; 4 cycles
 		or 0b10000000		; 2 cycles (hsync off)
@@ -253,7 +251,8 @@ vga_scanline_grille_handler_pixeldata:
 		res 7,b		; 2 cycles
 		out0 (PD_DR),b	; 4 cycles
 		; 71 cycles asserted
-		UART0_RX_POLL_OR_AUDIO_39_CYC
+		UART0_RX_POLL_OR_AUDIO_44_CYC
+		nop
 		or 0b10000000		; 2 cycles (hsync off)
 		ld e,a			; 1 cycles
 		; ack timer interrupt since we have overrun
@@ -264,7 +263,6 @@ vga_scanline_grille_handler_pixeldata:
 		cp 240			; 2
 		ld (_section_line_number),a	; 5 cycles
 		jr z,@end_section	; 2 not taken, 4 taken
-		REP_NOP 6
 		; de-assert hsync
 		out0 (PD_DR),e 	; 4 cycles
 		pop de
@@ -321,11 +319,11 @@ vga_scanline_handler_pixeldata:
 		out0 (PD_DR),b	; 4 cycles
 		; 71 cycles asserted
 		push de
-		UART0_RX_POLL_OR_AUDIO_39_CYC
+		UART0_RX_POLL_OR_AUDIO_44_CYC
 		push ix			; 5 cycles
 		push iy			; 5 cycles
 		ld ix,480		; 5 cycles. loop counter
-		REP_NOP 7
+		REP_NOP 2
 		or 0b10000000		; 2 cycles (hsync off)
 		out0 (PD_DR),a 	; 4 cycles
 
@@ -351,13 +349,13 @@ vga_scanline_handler_pixeldata:
 		res 7,b		; 2 cycles
 		out0 (PD_DR),b	; 4 cycles
 		; 71 cycles hsync
-		UART0_RX_POLL_OR_AUDIO_39_CYC
+		UART0_RX_POLL_OR_AUDIO_44_CYC
 		; update the framebuffer pointer (25 cycles)
 		ld hl,(fb_ptr)		; 7 cycles
 		lea iy,iy+3		; 3 cycles
 		ld bc,(iy+0)		; 6 cycles
 		add hl,bc		; 1 cycle
-		REP_NOP 9
+		REP_NOP 4
 
 		or 0b10000000		; 2 cycles (hsync off)
 		out0 (PD_DR),a 	; 4 cycles
