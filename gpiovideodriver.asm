@@ -14,9 +14,19 @@
 ;MOS_BOT: .equ 0xbc000
 ;TSR_LOC: .equ [MOS_BOT-0x1000]		; must be 0x100 aligned
 TSR_LOC: .equ 0xb7e000	; 8k on-chip sram
+AUDIO_DAT_LEN: .equ 0x102 ; audio_* stuff
 
 start:
 		push iy
+
+		ld de,[AUDIO_DAT_LEN+tsr_end-tsr_begin]
+
+		; make sure driver isn't too large for 8k SRAM
+		ld hl,0x2000
+		xor a
+		sbc hl,de
+		jp c,@too_big
+
 		; Copy driver to TSR_LOC
 		ld de,TSR_LOC
 		ld hl,tsr_begin
@@ -47,6 +57,10 @@ start:
 		print_asciz "mos_api_setresetvector not supported (rainbow mos 2.5+ needed)"
 		print_crlf
 		jr @exit
+	@too_big:
+		print_asciz "Fatal error: driver too large for 8k SRAM"
+		print_crlf
+		jp @exit
 
 tsr_begin:
 	.relocate TSR_LOC
@@ -58,6 +72,7 @@ jumptable:
 		.dl api_videostop		; a=4
 		.dl api_fillscanlineoffsetarray ; a=5
 		.dl api_lookupmode		; a=6
+		.dl api_getaudioctrl		; a=7
 
 rst20_api_handler:
 		push hl
@@ -145,6 +160,16 @@ api_lookupmode:
 		pop hl
 		ld a,l
 		call lookup_mode
+		ret.lil
+
+; Input: a=7
+; Output:
+;	hl = audio buffer address (256 byte size, 256 byte alignment)
+;	a = audio buffer play position
+api_getaudioctrl:
+		pop hl
+		ld hl,audio_buf
+		ld a,(audio_readpos)
 		ret.lil
 
 USE_CUSTOM_KEYBOARD_BUFFER: .equ 0	; Do not need custom logic. Use rainbow MOS 2.5+

@@ -28,19 +28,21 @@ macro HSYNC_PULSE_ONLY_WITH_SCANLINE_INCREMENT endcount
 		res 7,b		; 2 cycles
 		out0 (PD_DR),b	; 4 cycles
 		; 71 cycles asserted
-		UART0_RX_POLL_OR_AUDIO_44_CYC
+		UART0_RX_POLL_OR_AUDIO_46_CYC
 
 		; 3 cycles compute de-assert hsync
 		or 0b10000000		; 2 cycles (hsync off)
-		ld l,a			; 1 cycles
+		ld b,a			; 1 cycles
 
-		; 13 cycles increment _section_line_number
-		ld a,(_section_line_number)	; 5 cycles
+		; 11 cycles increment _section_line_number
+		ld hl,_section_line_number	; 4 cycles
+		ld a,(hl)			; 2
 		inc a				; 1
 		cp endcount			; 2
-		ld (_section_line_number),a	; 5 cycles
+		ld (hl),a			; 2
 
-		REP_NOP 7
+		REP_NOP 6
+		ld l,b
 		out0 (PD_DR),l 	; 4 cycles
 endmacro
 
@@ -56,7 +58,8 @@ macro HSYNC_VSYNC_PULSE_31KHZ endcount, next_handler
 		HSYNC_PULSE_ONLY_WITH_SCANLINE_INCREMENT endcount
 
 	; 35 cycles back porch -- assert vsync at end of this (start of visible section)
-		REP_NOP 29
+		REP_NOP_10x 2
+		REP_NOP 9
 		res 6,l		; 2 cycles
 		out0 (PD_DR),l	; 4 cycles
 
@@ -94,7 +97,8 @@ macro HSYNC_PULSE_31KHZ_END_VSYNC endcount, next_handler
 		HSYNC_PULSE_ONLY_WITH_SCANLINE_INCREMENT endcount
 
 	; 35 cycles back porch -- de-assert vsync at end of this (start of visible section)
-		REP_NOP 29
+		REP_NOP_10x 2
+		REP_NOP 9
 		set 6,l		; 2 cycles
 		out0 (PD_DR),l	; 4 cycles
 
@@ -211,16 +215,14 @@ vga_scanline_grille_handler_pixeldata:
 		out0 (PD_DR),b	; 4 cycles
 		; 71 cycles asserted
 		push de
-		UART0_RX_POLL_OR_AUDIO_44_CYC
-		nop
-		ld e,a
+		UART0_RX_POLL_OR_AUDIO_46_CYC
+		or 0b10000000		; 2 cycles (hsync off)
+		ld l,a
 		ld a,(_section_line_number)	; 5 cycles
 		ld bc,0				; 4 cycles
 		ld c,a				; 1 cyc
-		ld a,e
 		ld de,PC_DR		; 4 cycles
-		or 0b10000000		; 2 cycles (hsync off)
-		out0 (PD_DR),a 	; 4 cycles
+		out0 (PD_DR),l 	; 4 cycles
 		
 	; 35 cycles h.back porch (5 unused for start of loop)
 		REP_NOP 3
@@ -251,18 +253,18 @@ vga_scanline_grille_handler_pixeldata:
 		res 7,b		; 2 cycles
 		out0 (PD_DR),b	; 4 cycles
 		; 71 cycles asserted
-		UART0_RX_POLL_OR_AUDIO_44_CYC
-		nop
+		UART0_RX_POLL_OR_AUDIO_46_CYC
 		or 0b10000000		; 2 cycles (hsync off)
 		ld e,a			; 1 cycles
 		; ack timer interrupt since we have overrun
 		in0 a,(TMR1_CTL)	; 4 cycles
-
-		ld a,(_section_line_number)	; 5 cycles
+		ld hl,_section_line_number	; 4 cycles
+		ld a,(hl)			; 2
 		inc a				; 1
-		cp 240			; 2
-		ld (_section_line_number),a	; 5 cycles
+		cp 240				; 2
 		jr z,@end_section	; 2 not taken, 4 taken
+		ld (hl),a			; 2
+		REP_NOP 1
 		; de-assert hsync
 		out0 (PD_DR),e 	; 4 cycles
 		pop de
@@ -273,15 +275,14 @@ vga_scanline_grille_handler_pixeldata:
 		reti.lil
 
 	@end_section:
-		REP_NOP 3
+		xor a
 		; de-assert hsync
 		out0 (PD_DR),e 	; 4 cycles
 
 		; mark end of frame
-		ld hl,frame_counter	; 4 cycles
-		inc (hl)		; 2 cycles
-		xor a
-		ld (_section_line_number),a
+		ld (hl),a		; zero the _section_line_number
+		ld hl,frame_counter
+		inc (hl)
 		ld bc,vga_scanline_grille_handler_frontporch
 		ld hl,(_timer1_int_vector)
 		ld (hl),bc
@@ -319,11 +320,10 @@ vga_scanline_handler_pixeldata:
 		out0 (PD_DR),b	; 4 cycles
 		; 71 cycles asserted
 		push de
-		UART0_RX_POLL_OR_AUDIO_44_CYC
+		UART0_RX_POLL_OR_AUDIO_46_CYC
 		push ix			; 5 cycles
 		push iy			; 5 cycles
 		ld ix,480		; 5 cycles. loop counter
-		REP_NOP 2
 		or 0b10000000		; 2 cycles (hsync off)
 		out0 (PD_DR),a 	; 4 cycles
 
@@ -349,13 +349,13 @@ vga_scanline_handler_pixeldata:
 		res 7,b		; 2 cycles
 		out0 (PD_DR),b	; 4 cycles
 		; 71 cycles hsync
-		UART0_RX_POLL_OR_AUDIO_44_CYC
+		UART0_RX_POLL_OR_AUDIO_46_CYC
 		; update the framebuffer pointer (25 cycles)
 		ld hl,(fb_ptr)		; 7 cycles
 		lea iy,iy+3		; 3 cycles
 		ld bc,(iy+0)		; 6 cycles
 		add hl,bc		; 1 cycle
-		REP_NOP 4
+		REP_NOP 2
 
 		or 0b10000000		; 2 cycles (hsync off)
 		out0 (PD_DR),a 	; 4 cycles

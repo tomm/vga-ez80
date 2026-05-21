@@ -44,6 +44,22 @@ PRT_START: .equ 0b10
 		.ds num
 	endmacro
 
+	; for minimum n of 2
+	macro REP_NOP_10x n
+		push bc		; 4
+		ld b,[n-1]	; 2
+	@loop:	nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		djnz @loop	; 4*n
+		nop		; part of djnz
+		nop		;   "     "
+		pop bc		; 4
+	endmacro
+
 MODE_FLAG_SLOW: .equ 1
 MODE_FLAG_15KHZ: .equ 2
 MODE_FLAG_31KHZ: .equ 4
@@ -90,9 +106,11 @@ _modes:
 		.dl scan_rgb_15khz_288p_60hz_grille, 294, 320, 144, 1
 		.db MODE_FLAG_15KHZ | MODE_FLAG_50HZ
 
-		; no space yet for this
-		;.dl scan_rgb_15khz_288p_60hz, 294, 320, 288, 1
-		;.db MODE_FLAG_15KHZ | MODE_FLAG_SLOW | MODE_FLAG_50HZ
+		.dl scan_rgb_15khz_288p_50hz, 294, 320, 144, 2
+		.db MODE_FLAG_15KHZ | MODE_FLAG_SLOW | MODE_FLAG_50HZ
+
+		.dl scan_rgb_15khz_288p_50hz, 294, 320, 288, 1
+		.db MODE_FLAG_15KHZ | MODE_FLAG_SLOW | MODE_FLAG_50HZ
 _modes_end:
 num_modes: .equ [_modes_end-_modes]/modestruct_len
 
@@ -189,14 +207,9 @@ video_init:
 		ld hl,uart0_rx_buf
 		ld (uart0_buf_pos),hl
 
-		; grab any pending uart0 crap
-		;ld hl,1000000
-		;ld de,1
-	;@loop:
-		;IN0		A,(UART0_REG_RBR)	; 4 cyc. Read the character from the UART receive buffer
-		;or a
-		;sbc hl,de
-		;jr nz,@loop
+		; ready for next audio sample
+		ld a,1
+		ld (audio_bitpos),a
 
 		ret
 
