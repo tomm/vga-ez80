@@ -34,6 +34,8 @@ macro HSYNC_PULSE_ONLY_WITH_SCANLINE_INCREMENT endcount
 		or 0b10000000		; 2 cycles (hsync off)
 		ld b,a			; 1 cycles
 
+		in0 a,(TMR1_CTL)	; 4. ACK timer
+
 		; 11 cycles increment _section_line_number
 		ld hl,_section_line_number	; 4 cycles
 		ld a,(hl)			; 2
@@ -41,7 +43,7 @@ macro HSYNC_PULSE_ONLY_WITH_SCANLINE_INCREMENT endcount
 		cp endcount			; 2
 		ld (hl),a			; 2
 
-		REP_NOP 6
+		REP_NOP 2
 		ld l,b
 		out0 (PD_DR),l 	; 4 cycles
 endmacro
@@ -50,8 +52,6 @@ macro HSYNC_VSYNC_PULSE_31KHZ endcount, next_handler
 		push af
 		push bc
 		push hl
-		ld bc,TMR1_CTL
-		in a,(bc)	; ACK
 		DEJITTER_31KHZ_PRT
 
 	; 71 cycles (-ve sync pulse)
@@ -89,8 +89,6 @@ macro HSYNC_PULSE_31KHZ_END_VSYNC endcount, next_handler
 		push af
 		push bc
 		push hl
-		ld bc,TMR1_CTL
-		in a,(bc)	; ACK
 		DEJITTER_31KHZ_PRT
 
 	; 71 cycles (-ve sync pulse)
@@ -161,8 +159,6 @@ macro HSYNC_PULSE_31KHZ endcount, next_handler
 		push af
 		push bc
 		push hl
-		ld bc,TMR1_CTL
-		in a,(bc)	; ACK
 		DEJITTER_31KHZ_PRT
 
 	; 71 cycles (-ve sync pulse)
@@ -203,8 +199,6 @@ vga_scanline_grille_handler_pixeldata:
 		push af
 		push bc
 		push hl
-		ld bc,TMR1_CTL
-		in a,(bc)	; ACK
 		DEJITTER_31KHZ_PRT
 
 	; Setup visible line
@@ -308,8 +302,6 @@ vga_scanline_handler_pixeldata:
 		push af
 		push bc
 		push hl
-		ld bc,TMR1_CTL
-		in a,(bc)	; ACK
 		DEJITTER_31KHZ_PRT
 
 	; Setup first line of visible area

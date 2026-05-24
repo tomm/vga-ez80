@@ -9,7 +9,7 @@
 		.db 1 ; ADL
 
 ; x4 clock cycles
-TIMER_PERIOD: .equ 147 ; 147 for 31khz, 294 for 15khz ints
+TIMER_PERIOD: .equ 294 ; 147 for 31khz, 294 for 15khz ints
 
 PB_DR: .equ 0x9a
 PB_DDR: .equ 0x9b
@@ -62,7 +62,10 @@ start:
 		ld de,TEST_COUNT
 		or a
 		sbc hl,de
-		jr c,@loop
+		; plenty of nops in the loop, so we easily see the 
+		; interrupt latency when executing 1-cycle instructions
+		REP_NOP 100
+		jp c,@loop
 
 		; turn off timer
 		xor a
@@ -120,23 +123,23 @@ _timer1_int_vector: ds 3
 macro DEJITTER
 	; sample interrupt timing jitter from PRT register (16 cycles)
 	; can read every 3 cycles, while PRT decrements every 4.
-	; TMR1_DR_L into bc. XXX we assume bc container TMR1_CTL
-	inc bc		; 1 cycle
+	ld bc,TMR1_DR_L	; 4
 	in a,(bc)	; 3
 	in h,(bc)	; 3
 	in l,(bc)	; 3
 	in b,(bc)	; 3
 
 	; sum it (3 cycles)
-	add a,h
-	add a,l
-	add a,b
+	cpl
+	sub a,h
+	sub a,l
+	sub a,b
 
 	; convert to number of cycles lagged (by the instruction executing when interrupt was due)
-	ld b,a
-	ld a,0x1e	; determined by experiment. will be invalidated if any code on interrupt entry are changed
+	; determined by experiment. will be invalidated if any code on interrupt entry are changed
+	;add a,0x25	; for 31khz modes
+	add a,0x71	; for 15khz modes
 			; (ie all code up to the last 'in' instruction above)
-	sub b
 	; now cycles lagged is in `a`
 	; negate it by a computed jump into nops
 	; (8 cycles for self-modify & jr)
@@ -173,8 +176,6 @@ timer_int_handler:
 		push af
 		push bc
 		push hl
-		ld bc,TMR1_CTL
-		in a,(bc) ; ACK
 		DEJITTER
 
 		push de
@@ -186,6 +187,8 @@ timer_int_handler:
 		ld (hl),a
 		inc de	
 		ld (test_position),de
+		
+		in0 a,(TMR1_CTL) ; ACK timer
 
 		pop de
 		pop hl

@@ -30,10 +30,12 @@ macro HSYNC_ONLY_15KHZ
 		push de
 		UART0_RX_POLL_OR_AUDIO_46_CYC
 		pop de
-		REP_NOP_10x 8
-		REP_NOP 2
 		or 0b10000000		; 2 cycles (hsync off)
-		out0 (PD_DR),a 	; 4 cycles
+		ld b,a
+		REP_NOP_10x 7
+		in0 a,(TMR1_CTL)	; 4. ACK timer
+		REP_NOP 7
+		out0 (PD_DR),b 	; 4 cycles
 endmacro
 
 macro HSYNC_PULSE_ONLY_WITH_SCANLINE_INCREMENT_15KHZ endcount
@@ -46,9 +48,11 @@ macro HSYNC_PULSE_ONLY_WITH_SCANLINE_INCREMENT_15KHZ endcount
 		UART0_RX_POLL_OR_AUDIO_46_CYC
 		pop de
 		REP_NOP_10x 6
-		REP_NOP 8
+		REP_NOP 4
 		or 0b10000000		; 2 cycles (hsync off)
 		ld l,a			; 1 cycles
+
+		in0 a,(TMR1_CTL)	; 4. ACK timer
 
 		ld a,(_section_line_number)	; 5 cycles
 		inc a				; 1
@@ -62,8 +66,6 @@ macro HSYNC_VSYNC_PULSE_15KHZ endcount, next_handler
 		push af
 		push bc
 		push hl
-		ld bc,TMR1_CTL
-		in a,(bc)	; ACK
 		DEJITTER_15KHZ_PRT
 
 	; 71 cycles (-ve sync pulse)
@@ -101,8 +103,6 @@ macro HSYNC_PULSE_15KHZ_END_VSYNC endcount, next_handler
 		push af
 		push bc
 		push hl
-		ld bc,TMR1_CTL
-		in a,(bc)	; ACK
 		DEJITTER_15KHZ_PRT
 
 	; 71 cycles (-ve sync pulse)
@@ -173,8 +173,6 @@ macro HSYNC_PULSE_15KHZ endcount, next_handler
 		push af
 		push bc
 		push hl
-		ld bc,TMR1_CTL
-		in a,(bc)	; ACK
 		DEJITTER_15KHZ_PRT
 
 	; 71 cycles (-ve sync pulse)
@@ -205,8 +203,6 @@ macro RGB_15KHZ_GRILLE_PIXELDATA numlines, frontporch_handler
 		push af
 		push bc
 		push hl
-		ld bc,TMR1_CTL
-		in a,(bc)	; ACK
 		DEJITTER_15KHZ_PRT
 
 	; Setup visible line
@@ -302,8 +298,6 @@ macro RGB_15KHZ_NOYIELD_PIXELDATA numlines, frontporch_handler
 		push af
 		push bc
 		push hl
-		ld bc,TMR1_CTL
-		in a,(bc)	; ACK
 		DEJITTER_15KHZ_PRT
 
 	; Setup first line of visible area
