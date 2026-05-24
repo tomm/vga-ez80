@@ -164,8 +164,17 @@ api_lookupmode:
 
 ; Input: a=7
 ; Output:
-;	hl = audio buffer address (256 byte size, 256 byte alignment)
-;	a = audio buffer play position
+;	hl = audio ring buffer address (256 byte size, 256 byte alignment)
+;	a = audio ring buffer play position
+;
+; Samples written to the audio ring buffer are packets
+; of 8 samples per byte, played lowest-order bit first.
+;
+; Do not write to the 'play position' (output register `a`):
+; this would cause audio corruption. Buffer is full when you
+; have filled up to one byte before the 'play position'.
+;
+; Audio playback is destructive, clearing the buffer as it goes.
 api_getaudioctrl:
 		pop hl
 		ld hl,audio_buf
